@@ -1,2 +1,2 @@
 /// All NN modules
-mod modules;
+pub mod modules;

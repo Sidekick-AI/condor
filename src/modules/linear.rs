@@ -14,7 +14,7 @@ impl nn::Module for Linear {
 }
 
 impl Linear {
-    pub fn new(vs: nn::Path, in_dim: i64, out_dim: i64) -> Self {
+    pub fn new(vs: &nn::Path, in_dim: i64, out_dim: i64) -> Self {
         let wd = vs.set_group(1);
         let no_wd = vs.set_group(0);
         Linear {

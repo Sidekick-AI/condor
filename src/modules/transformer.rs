@@ -1,9 +1,10 @@
-use super::{NNModule, Linear};
-use tch::nn::{Embedding, LayerNorm};
+use super::{Linear, NNModule, Sequential};
+use tch::nn::{Embedding, LayerNorm, Module};
 use tch::{nn, Device, IndexOp, Kind, Tensor};
 
+/// The most basic dot-product self attention with an optional causal mask
 #[derive(Debug)]
-struct CausalSelfAttention {
+struct SelfAttention {
     n_head: i64,
     n_embd: i64,
     dropout: f64,
@@ -12,19 +13,21 @@ struct CausalSelfAttention {
     value: Linear,
     proj: Linear,
     train: bool,
+    causal_mask: bool
 }
 
-impl CausalSelfAttention {
-    fn new(p: &nn::Path, n_embd: i64, n_head: i64, dropout: f64) -> Self {
-        CausalSelfAttention {
+impl SelfAttention {
+    fn new(p: &nn::Path, n_embd: i64, n_head: i64, dropout: f64, causal_mask: bool) -> Self {
+        SelfAttention {
             n_embd,
             n_head,
             dropout,
-            key: Linear::new(p / "key", n_embd, n_embd),
-            query: Linear::new(p / "query", n_embd, n_embd),
-            value: Linear::new(p / "value", n_embd, n_embd),
-            proj: Linear::new(p / "proj", n_embd, n_embd),
+            key: Linear::new(&(p / "key"), n_embd, n_embd),
+            query: Linear::new(&(p / "query"), n_embd, n_embd),
+            value: Linear::new(&(p / "value"), n_embd, n_embd),
+            proj: Linear::new(&(p / "proj"), n_embd, n_embd),
             train: true,
+            causal_mask,
         }
     }
 
@@ -33,7 +36,7 @@ impl CausalSelfAttention {
     }
 }
 
-impl NNModule for CausalSelfAttention {
+impl NNModule for SelfAttention {
     fn train(&mut self) {
         self.train = true;
     }
@@ -47,20 +50,22 @@ impl NNModule for CausalSelfAttention {
     }
 }
 
-impl nn::Module for CausalSelfAttention {
+impl nn::Module for SelfAttention {
     fn forward(&self, xs: &Tensor) -> Tensor {
         let (sz_b, sz_t, sz_c) = xs.size3().unwrap();
         let sizes = [sz_b, sz_t, self.n_head, sz_c / self.n_head];
         let k = xs.apply(&self.key).view(sizes).transpose(1, 2);
         let q = xs.apply(&self.query).view(sizes).transpose(1, 2);
         let v = xs.apply(&self.value).view(sizes).transpose(1, 2);
-        let att = q.matmul(&k.transpose(-2, -1)) * (1.0 / f64::sqrt(sizes[3] as f64));
-        let mask = CausalSelfAttention::generate_mask(sz_t, xs.device());
-        let att = att.masked_fill(
-            &mask.i((.., .., ..sz_t, ..sz_t)).eq(0.),
-            std::f64::NEG_INFINITY,
-        );
-        let att = att.softmax(-1, Kind::Float).dropout(self.dropout, self.train);
+        let mut att = q.matmul(&k.transpose(-2, -1)) * (1.0 / f64::sqrt(sizes[3] as f64));
+        if self.causal_mask {
+            let mask = SelfAttention::generate_mask(sz_t, xs.device());
+            att = att.masked_fill(
+                &mask.i((.., .., ..sz_t, ..sz_t)).eq(0.),
+                std::f64::NEG_INFINITY,
+            );
+        }
+        att = att.softmax(-1, Kind::Float).dropout(self.dropout, self.train);
         let ys = att
             .matmul(&v)
             .transpose(1, 2)
@@ -70,11 +75,12 @@ impl nn::Module for CausalSelfAttention {
     }
 }
 
+/// A basic transformer encoder block
 #[derive(Debug)]
 struct TransformerBlock {
     norm1: LayerNorm,
     norm2: LayerNorm,
-    attn: CausalSelfAttention,
+    attn: SelfAttention,
     linear1: Linear,
     linear2: Linear,
     dropout: f64,
@@ -82,13 +88,13 @@ struct TransformerBlock {
 }
 
 impl TransformerBlock {
-    fn new(p: &nn::Path, n_embd: i64, n_head: i64, dropout: f64) -> Self {
+    fn new(p: &nn::Path, n_embd: i64, n_head: i64, dropout: f64, causal_mask: bool) -> Self {
         TransformerBlock {
             norm1: nn::layer_norm(p / "ln1", vec![n_embd], Default::default()),
             norm2: nn::layer_norm(p / "ln2", vec![n_embd], Default::default()),
-            attn: CausalSelfAttention::new(p, n_embd, n_head, dropout),
-            linear1: Linear::new(p / "lin1", n_embd, 4 * n_embd),
-            linear2: Linear::new(p / "lin2", 4 * n_embd, n_embd),
+            attn: SelfAttention::new(p, n_embd, n_head, dropout, causal_mask),
+            linear1: Linear::new(&(p / "lin1"), n_embd, 4 * n_embd),
+            linear2: Linear::new(&(p / "lin2"), 4 * n_embd, n_embd),
             dropout,
             train: true
         }
@@ -124,13 +130,13 @@ impl NNModule for TransformerBlock {
     }
 }
 
+/// A basic transformer encoder stack using learned embeddings
 #[derive(Debug)]
 pub struct TransformerEncoder {
     token_embedding: Embedding,
     position_embedding: Tensor,
     layernorm: LayerNorm,
-    head: Linear,
-    blocks: Vec<TransformerBlock>,
+    blocks: Sequential,
     dropout: f64,
     vocab_size: i64,
     n_embed: i64,
@@ -138,7 +144,7 @@ pub struct TransformerEncoder {
 }
 
 impl TransformerEncoder {
-    pub fn new(p: &nn::Path, n_embd: i64, n_head: i64, n_layers: i64, vocab_size: i64, max_len: i64, dropout: f64) -> Self {
+    pub fn new(p: &nn::Path, n_embd: i64, n_head: i64, n_layers: i64, vocab_size: i64, max_len: i64, dropout: f64, causal_mask: bool) -> Self {
         TransformerEncoder {
             token_embedding: nn::embedding(
                 p / "tok_emb",
@@ -148,12 +154,11 @@ impl TransformerEncoder {
             ),
             position_embedding: p.zeros("pos_emb", &[1, max_len, n_embd]),
             layernorm: nn::layer_norm(p / "ln_f", vec![n_embd], Default::default()),
-            head: Linear::no_bias(p / "head", n_embd, n_embd),
             blocks: {
                 let p = &p.set_group(0);
-                let mut blocks = vec![];
+                let mut blocks = Sequential::new();
                 for block_idx in 0..n_layers {
-                    blocks.push(TransformerBlock::new(&(p / block_idx), n_embd, n_head, dropout));
+                    blocks.add(TransformerBlock::new(&(p / block_idx), n_embd, n_head, dropout, causal_mask));
                 }
                 blocks
             },
@@ -163,41 +168,48 @@ impl TransformerEncoder {
             train: true,
         }
     }
+
+    pub fn forward_no_embed(&self, xs: &Tensor) -> Tensor {
+        // xs shape: (batch size, seq len, n_embd)
+        let (_, sz_t, _) = xs.size3().unwrap();
+        let pos_emb = self.position_embedding.i((.., ..sz_t, ..));
+        let mut x = (xs + pos_emb)
+            .dropout(self.dropout, self.train);
+        // Run through transformer blocks
+        x = self.blocks.forward(&x);
+        // Return first token
+        x.apply(&self.layernorm)
+        // output shape: (batch size, n_embd)
+    }
 }
 
 impl nn::Module for TransformerEncoder {
     fn forward(&self, xs: &Tensor) -> Tensor {
         // xs shape: (batch size, seq len)
-        // Append aggregation token to beginning
-        let (sz_b, sz_t) = xs.size2().unwrap();
-        let new = Tensor::full(&[sz_b, 1], self.vocab_size - 1, (xs.kind(), xs.device()));
-        let xs = tch::Tensor::cat(&[xs, &new], 1);
+        let (_, sz_t) = xs.size2().unwrap();
         // Run through embeddings
         let tok_emb = xs.apply(&self.token_embedding);
-        let pos_emb = self.position_embedding.i((.., ..sz_t + 1, ..));
+        let pos_emb = self.position_embedding.i((.., ..sz_t, ..));
         let mut x = (tok_emb + pos_emb)
             .dropout(self.dropout, self.train);
         // Run through transformer blocks
-        for block in &self.blocks {
-            x = x.apply_t(block, self.train);
-        }
+        x = self.blocks.forward(&x);
         // Return first token
-        x.i((.., 0, ..)).squeeze_dim(1)
-            .apply(&self.layernorm).apply(&self.head)
+        x.apply(&self.layernorm)
         // output shape: (batch size, n_embd)
     }
 }
 
 impl NNModule for TransformerEncoder {
     fn train(&mut self) {
-        for block in &mut self.blocks {
+        for block in &mut self.blocks.layers {
             block.train();
         }
         self.train = true;
     }
 
     fn eval(&mut self) {
-        for block in &mut self.blocks {
+        for block in &mut self.blocks.layers {
             block.eval();
         }
         self.train = false;
@@ -206,7 +218,64 @@ impl NNModule for TransformerEncoder {
     fn count_parameters(&self) -> u64 {
         self.token_embedding.ws.size().iter().map(|t| {*t as u64}).fold(1u64, |total, val| {total * val})
         + self.position_embedding.size().iter().map(|t| {*t as u64}).fold(1u64, |total, val| {total * val})
-        + self.head.count_parameters()
-        + self.blocks.iter().map(|block| {block.count_parameters()}).sum::<u64>()
+        + self.blocks.layers.iter().map(|block| {block.count_parameters()}).sum::<u64>()
+    }
+}
+
+
+/// A transformer encoder that aggregates a sequence into a single vector
+#[derive(Debug)]
+pub struct TransformerAggregator {
+    encoder: TransformerEncoder,
+    aggregation_embedding: Tensor,
+    head: Linear
+}
+
+impl TransformerAggregator {
+    pub fn new(p: &nn::Path, n_embd: i64, n_head: i64, n_layers: i64, aggregation_size: i64, vocab_size: i64, max_len: i64, dropout: f64) -> Self {
+        TransformerAggregator {
+            encoder: TransformerEncoder::new(p, n_embd, n_head, n_layers, vocab_size, max_len, dropout, false),
+            head: Linear::new(p, n_embd, aggregation_size),
+            aggregation_embedding: Tensor::rand(&[n_embd], (Kind::Float, p.device())),
+        }
+    }
+
+    pub fn from_encoder(p: &nn::Path, encoder: TransformerEncoder, aggregation_size: i64) -> Self {
+        TransformerAggregator {
+            aggregation_embedding: Tensor::rand(&[encoder.n_embed], (Kind::Float, p.device())),
+            head: Linear::new(p, encoder.n_embed, aggregation_size),
+            encoder
+        }
+    }
+}
+
+impl nn::Module for TransformerAggregator {
+    fn forward(&self, xs: &Tensor) -> Tensor {
+        // xs shape: (batch size, seq len)
+        let batch_size = xs.size()[0];
+        // Embed and append aggregation embedding to beginning
+        let mut xs = tch::Tensor::cat(&[
+            &self.aggregation_embedding.unsqueeze(0).unsqueeze(0).repeat(&[batch_size, 1, 1]), 
+            &self.encoder.token_embedding.forward(&xs)
+        ], 1);
+        // Run through encoder
+        xs = self.encoder.forward_no_embed(&xs);
+        // Return first token
+        xs.i((.., 0, ..)).squeeze_dim(1).apply(&self.head)
+        // output shape: (batch size, n_embd)
+    }
+}
+
+impl NNModule for TransformerAggregator {
+    fn train(&mut self) {
+        self.encoder.train();
+    }
+
+    fn eval(&mut self) {
+        self.encoder.eval();
+    }
+
+    fn count_parameters(&self) -> u64 {
+        self.encoder.count_parameters() + self.head.count_parameters()
     }
 }
