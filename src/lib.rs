@@ -3,3 +3,5 @@ pub mod modules;
 
 /// Common utilities for machine learning
 pub mod utils;
+
+mod other_crates;

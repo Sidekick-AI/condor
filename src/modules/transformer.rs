@@ -92,9 +92,9 @@ impl TransformerBlock {
         TransformerBlock {
             norm1: nn::layer_norm(p / "ln1", vec![n_embd], Default::default()),
             norm2: nn::layer_norm(p / "ln2", vec![n_embd], Default::default()),
-            attn: SelfAttention::new(p, n_embd, n_head, dropout, causal_mask),
-            linear1: Linear::new(&(p / "lin1"), n_embd, 4 * n_embd),
-            linear2: Linear::new(&(p / "lin2"), 4 * n_embd, n_embd),
+            attn: SelfAttention::new(&(p / "attn"), n_embd, n_head, dropout, causal_mask),
+            linear1: Linear::new(&(p / "lin1"), n_embd, 2 * n_embd),
+            linear2: Linear::new(&(p / "lin2"), 2 * n_embd, n_embd),
             dropout,
             train: true
         }
@@ -155,7 +155,7 @@ impl TransformerEncoder {
             position_embedding: p.zeros("pos_emb", &[1, max_len, n_embd]),
             layernorm: nn::layer_norm(p / "ln_f", vec![n_embd], Default::default()),
             blocks: {
-                let p = &p.set_group(0);
+                //let p = &p.set_group(0);
                 let mut blocks = Sequential::new();
                 for block_idx in 0..n_layers {
                     blocks.add(TransformerBlock::new(&(p / block_idx), n_embd, n_head, dropout, causal_mask));
@@ -234,16 +234,16 @@ pub struct TransformerAggregator {
 impl TransformerAggregator {
     pub fn new(p: &nn::Path, n_embd: i64, n_head: i64, n_layers: i64, aggregation_size: i64, vocab_size: i64, max_len: i64, dropout: f64) -> Self {
         TransformerAggregator {
-            encoder: TransformerEncoder::new(p, n_embd, n_head, n_layers, vocab_size, max_len, dropout, false),
-            head: Linear::new(p, n_embd, aggregation_size),
-            aggregation_embedding: Tensor::rand(&[n_embd], (Kind::Float, p.device())),
+            encoder: TransformerEncoder::new(&(p / "encoder"), n_embd, n_head, n_layers, vocab_size, max_len, dropout, false),
+            head: Linear::new(&(p / "aggregation_head"), n_embd, aggregation_size),
+            aggregation_embedding: p.randn("aggregation_vector", &[n_embd], 0.0, 0.2),
         }
     }
 
     pub fn from_encoder(p: &nn::Path, encoder: TransformerEncoder, aggregation_size: i64) -> Self {
         TransformerAggregator {
-            aggregation_embedding: Tensor::rand(&[encoder.n_embed], (Kind::Float, p.device())),
-            head: Linear::new(p, encoder.n_embed, aggregation_size),
+            aggregation_embedding: p.randn("aggregation_vector", &[encoder.n_embed], 0.0, 0.2),
+            head: Linear::new(&(p / "aggregation_head"), encoder.n_embed, aggregation_size),
             encoder
         }
     }
