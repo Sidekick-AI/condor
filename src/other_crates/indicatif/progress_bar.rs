@@ -154,14 +154,6 @@ impl ProgressBar {
     /// [`ProgressBar::tick()`], [`ProgressBar::set_message()`] and [`ProgressBar::set_length()`]
     /// will no longer cause the progress bar to be redrawn, and will only be shown once the
     /// position advances by `n` steps.
-    ///
-    /// ```rust,no_run
-    /// # use indicatif::ProgressBar;
-    /// let n = 1_000_000;
-    /// let pb = ProgressBar::new(n);
-    /// pb.set_draw_delta(n / 100); // redraw every 1% of additional progress
-    /// ```
-    ///
     /// Note that `ProgressDrawTarget` may impose additional buffering of redraws.
     pub fn set_draw_delta(&self, n: u64) {
         let mut state = self.state.lock().unwrap();
@@ -175,13 +167,6 @@ impl ProgressBar {
     /// regardless of how consistent the progress is.
     ///
     /// This parameter takes precedence on `set_draw_delta` if different from 0.
-    ///
-    /// ```rust,no_run
-    /// # use indicatif::ProgressBar;
-    /// let n = 1_000_000;
-    /// let pb = ProgressBar::new(n);
-    /// pb.set_draw_rate(25); // aims at redrawing at most 25 times per seconds.
-    /// ```
     ///
     /// Note that the [`ProgressDrawTarget`] may impose additional buffering of redraws.
     pub fn set_draw_rate(&self, n: u64) {
@@ -386,12 +371,6 @@ impl ProgressBar {
     ///
     /// This can be used to draw the progress bar to stderr (this is the default):
     ///
-    /// ```rust,no_run
-    /// # use indicatif::{ProgressBar, ProgressDrawTarget};
-    /// let pb = ProgressBar::new(100);
-    /// pb.set_draw_target(ProgressDrawTarget::stderr());
-    /// ```
-    ///
     /// **Note:** Calling this method on a [`ProgressBar`] linked with a [`MultiProgress`] (after
     /// running [`MultiProgress::add`]) will unlink this progress bar. If you don't want this
     /// behavior, call [`MultiProgress::set_draw_target`] instead.
@@ -402,33 +381,11 @@ impl ProgressBar {
     }
 
     /// Wraps an [`Iterator`] with the progress bar
-    ///
-    /// ```rust,no_run
-    /// # use indicatif::ProgressBar;
-    /// let v = vec![1, 2, 3];
-    /// let pb = ProgressBar::new(3);
-    /// for item in pb.wrap_iter(v.iter()) {
-    ///     // ...
-    /// }
-    /// ```
     pub fn wrap_iter<It: Iterator>(&self, it: It) -> ProgressBarIter<It> {
         it.progress_with(self.clone())
     }
 
     /// Wraps an [`io::Read`] with the progress bar
-    ///
-    /// ```rust,no_run
-    /// # use std::fs::File;
-    /// # use std::io;
-    /// # use indicatif::ProgressBar;
-    /// # fn test () -> io::Result<()> {
-    /// let source = File::open("work.txt")?;
-    /// let mut target = File::create("done.txt")?;
-    /// let pb = ProgressBar::new(source.metadata()?.len());
-    /// io::copy(&mut pb.wrap_read(source), &mut target);
-    /// # Ok(())
-    /// # }
-    /// ```
     pub fn wrap_read<R: io::Read>(&self, read: R) -> ProgressBarIter<R> {
         ProgressBarIter {
             progress: self.clone(),
@@ -437,19 +394,6 @@ impl ProgressBar {
     }
 
     /// Wraps an [`io::Write`] with the progress bar
-    ///
-    /// ```rust,no_run
-    /// # use std::fs::File;
-    /// # use std::io;
-    /// # use indicatif::ProgressBar;
-    /// # fn test () -> io::Result<()> {
-    /// let mut source = File::open("work.txt")?;
-    /// let target = File::create("done.txt")?;
-    /// let pb = ProgressBar::new(source.metadata()?.len());
-    /// io::copy(&mut source, &mut pb.wrap_write(target));
-    /// # Ok(())
-    /// # }
-    /// ```
     pub fn wrap_write<W: io::Write>(&self, write: W) -> ProgressBarIter<W> {
         ProgressBarIter {
             progress: self.clone(),

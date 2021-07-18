@@ -24,6 +24,7 @@ mod rnn_test {
 #[cfg(test)]
 mod transformer_test {
     use tch::{Device, Kind, Tensor, nn::{self, Module}};
+
     use super::super::{NNModule, TransformerAggregator, TransformerEncoder};
 
     #[test]
@@ -40,7 +41,7 @@ mod transformer_test {
         let input = Tensor::randint(99, &[15, 50], (Kind::Int, Device::cuda_if_available()));
         let output = transformer_encoder.forward(&input);
         assert_eq!(output.size(), &[15, 50, 100]);
-        assert_eq!(transformer_encoder.count_parameters(), 382700);
+        assert_eq!(transformer_encoder.count_parameters(), 262100);
     }
 
     #[test]
@@ -57,7 +58,7 @@ mod transformer_test {
         let input = Tensor::randint(99, &[15, 50], (Kind::Int, Device::cuda_if_available()));
         let output = transformer_aggregator.forward(&input);
         assert_eq!(output.size(), &[15, 150]);
-        assert_eq!(transformer_aggregator.count_parameters(), 397850);
+        assert_eq!(transformer_aggregator.count_parameters(), 277250);
     }
 
     #[test]
@@ -75,7 +76,7 @@ mod transformer_test {
         let input = Tensor::randint(99, &[15, 50], (Kind::Int, Device::cuda_if_available()));
         let output = transformer_aggregator.forward(&input);
         assert_eq!(output.size(), &[15, 150]);
-        assert_eq!(transformer_aggregator.count_parameters(), 397850);
+        assert_eq!(transformer_aggregator.count_parameters(), 277250);
     }
 }
 

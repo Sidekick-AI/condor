@@ -43,17 +43,6 @@
 //! (eg: the progress bar stays on the screen) or cleared (the progress
 //! bar will be removed).
 //!
-//! ```rust
-//! use indicatif::ProgressBar;
-//!
-//! let bar = ProgressBar::new(1000);
-//! for _ in 0..1000 {
-//!     bar.inc(1);
-//!     // ...
-//! }
-//! bar.finish();
-//! ```
-//!
 //! General progress bar behaviors:
 //!
 //! * if a non terminal is detected the progress bar will be completely
@@ -72,13 +61,6 @@
 //! Similar to [tqdm](https://github.com/tqdm/tqdm), progress bars can be
 //! associated with an iterator. For example:
 //!
-//! ```rust
-//! use indicatif::ProgressIterator;
-//!
-//! for _ in (0..1000).progress() {
-//!     // ...
-//! }
-//! ```
 //!
 //! See the [`ProgressIterator`](trait.ProgressIterator.html) trait for more
 //! methods to configure the number of elements in the iterator or change
@@ -86,75 +68,24 @@
 //! iterators with [Rayon](https://github.com/rayon-rs/rayon). In your
 //! `Cargo.toml`, use the "rayon" feature:
 //!
-//! ```toml
-//! [dependencies]
-//! indicatif = {version = "*", features = ["rayon"]}
-//! ```
-//!
-//! And then use it like this:
-//!
-//! ```rust,ignore
-//! # extern crate rayon;
-//! use indicatif::ParallelProgressIterator;
-//! use rayon::iter::{ParallelIterator, IntoParallelRefIterator};
-//!
-//! let v: Vec<_> = (0..100000).collect();
-//! let v2: Vec<_> = v.par_iter().progress_count(v.len() as u64).map(|i| i + 1).collect();
-//! assert_eq!(v2[0], 1);
-//! ```
-//!
 //! Or if you'd like to customize the progress bar:
-//!
-//! ```rust,ignore
-//! # extern crate rayon;
-//! use indicatif::{ProgressBar, ParallelProgressIterator};
-//! use rayon::iter::{ParallelIterator, IntoParallelRefIterator};
-//!
-//! // Use `ProgressBar::with_style` to change the view
-//! let pb = ProgressBar::new();
-//! let v: Vec<_> = (0..100000).collect();
-//! let v2: Vec<_> = v.par_iter().progress_with(pb).map(|i| i + 1).collect();
-//! assert_eq!(v2[0], 1);
-//! ```
 //!
 //! # Templates
 //!
 //! Progress bars can be styled with simple format strings similar to the
 //! ones in Rust itself.  The format for a placeholder is `{key:options}`
 //! where the `options` part is optional.  If provided the format is this:
-//!
-//! ```text
-//! [<^>]           for an optional alignment specification
-//! WIDTH           an optional width as positive integer
-//! !               an optional exclamation mark to enable truncation
-//! .STYLE          an optional dot separated style string
-//! /STYLE          an optional dot separated alternative style string
-//! ```
-//!
+
 //! For the style component see [`Style::from_dotted_str`](https://docs.rs/console/0.7.5/console/struct.Style.html#method.from_dotted_str)
 //! for more information.  Indicatif uses the `console` base crate for all
 //! colorization and formatting options.
 //!
 //! Some examples for templates:
-//!
-//! ```text
-//! [{elapsed_precise}] {bar:40.cyan/blue} {pos:>7}/{len:7} {msg}
-//! ```
-//!
 //! This sets a progress bar that is 40 characters wide and has cyan
 //! as primary style color and blue as alternative style color.
 //! Alternative styles are currently only used for progress bars.
 //!
 //! Example configuration:
-//!
-//! ```rust
-//! # use indicatif::{ProgressBar, ProgressStyle};
-//! # let bar = ProgressBar::new(0);
-//! bar.set_style(ProgressStyle::default_bar()
-//!     .template("[{elapsed_precise}] {bar:40.cyan/blue} {pos:>7}/{len:7} {msg}")
-//!     .progress_chars("##-"));
-//! ```
-//!
 //! The following keys exist:
 //!
 //! * `bar`: renders a progress bar. By default 20 characters wide.  The
@@ -190,14 +121,6 @@
 //!
 //! There are some formatting wrappers for showing elapsed time and
 //! file sizes for human users:
-//!
-//! ```rust
-//! # use std::time::Duration;
-//! use indicatif::{HumanDuration, HumanBytes};
-//!
-//! assert_eq!("3.00MiB", HumanBytes(3*1024*1024).to_string());
-//! assert_eq!("8 seconds", HumanDuration(Duration::from_secs(8)).to_string());
-//! ```
 //!
 //! # Feature Flags
 //!

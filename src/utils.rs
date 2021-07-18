@@ -6,11 +6,11 @@ use tch::nn::VarStore;
 pub fn train_progress_bar(steps: u64) -> ProgressBar {
     let bar = ProgressBar::new(steps);
     bar.set_style(ProgressStyle::default_bar()
-        .template("{spinner:.green.bright} │{wide_bar:.green.bright/blue}│{pos:>7}/{len:7}({rate} | {eta} | {elapsed_precise})")
+        .template("{spinner:.green.bright} │{wide_bar:.green.bright/blue}│{pos:>7}/{len:7}({msg} | {rate} | {eta} | {elapsed_precise})")
         .with_key("eta", |state| {
             let secs = state.eta().as_secs();
             let mut string = format!("{:.1}s", state.eta().as_secs_f64() % 60.);
-            if secs / 60 > 0 {string = format!("{}m {}", secs / 60, string);}
+            if (secs / 60) % 60 > 0 {string = format!("{}m {}", (secs / 60) % 60, string);}
             if secs / 3600 > 0 {string = format!("{}h {}", secs / 3600, string);}
             string
         })
@@ -33,7 +33,7 @@ pub fn test_progress_bar(steps: u64) -> ProgressBar {
         .with_key("eta", |state| {
             let secs = state.eta().as_secs();
             let mut string = format!("{:.1}s", state.eta().as_secs_f64() % 60.);
-            if secs / 60 > 0 {string = format!("{}m {}", secs / 60, string);}
+            if (secs / 60) % 60 > 0 {string = format!("{}m {}", (secs / 60) % 60, string);}
             if secs / 3600 > 0 {string = format!("{}h {}", secs / 3600, string);}
             string
         })
