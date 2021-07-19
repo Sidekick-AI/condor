@@ -279,3 +279,48 @@ impl NNModule for TransformerAggregator {
         self.encoder.count_parameters() + self.head.count_parameters()
     }
 }
+
+/// A simple language model, using a causally masked transformer encoder and a head
+#[derive(Debug)]
+pub struct LanguageModel {
+    transformer: TransformerEncoder,
+    head: Linear
+}
+
+impl LanguageModel {
+    pub fn new(p: &nn::Path, n_embd: i64, n_head: i64, n_layers: i64, vocab_size: i64, max_len: i64, dropout: f64) -> Self {
+        LanguageModel {
+            transformer: TransformerEncoder::new(&(p / "transformer"), n_embd, n_head, n_layers, vocab_size, max_len, dropout, true),
+            head: Linear::new(&(p / "lm_head"), n_embd, vocab_size)
+        }
+    }
+
+    pub fn from_encoder(p: &nn::Path, encoder: TransformerEncoder, vocab_size: i64) -> Self {
+        LanguageModel {
+            head: Linear::new(&(p / "lm_head"), encoder.n_embed, vocab_size),
+            transformer: encoder,
+        }
+    }
+}
+
+impl nn::Module for LanguageModel {
+    fn forward(&self, xs: &Tensor) -> Tensor {
+        xs.apply(&self.transformer).apply(&self.head)
+    }
+}
+
+impl NNModule for LanguageModel {
+    fn train(&mut self) {
+        self.transformer.train();
+        self.head.train();
+    }
+
+    fn eval(&mut self) {
+        self.transformer.eval();
+        self.head.eval();
+    }
+
+    fn count_parameters(&self) -> u64 {
+        self.transformer.count_parameters() + self.head.count_parameters()
+    }
+}

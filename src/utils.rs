@@ -1,6 +1,22 @@
+use std::ops::Div;
+
 use crate::other_crates::indicatif::{ProgressBar, ProgressStyle};
 use num::{Float, Zero};
-use tch::nn::VarStore;
+use rand::{Rng, thread_rng};
+use tch::{Kind, Tensor, nn::VarStore};
+
+/// Sample from distribution TODO: make more generalized sampling
+pub fn sample_1d(logits: Tensor, temperature: f64) -> usize {
+    assert_eq!(logits.size().len(), 1);
+    let softmaxxed = Vec::<f64>::from(logits.div(temperature).softmax(0, Kind::Float));
+    let num = thread_rng().gen_range((0.)..1.);
+    let mut total = 0.;
+    for i in 0..softmaxxed.len() {
+        total += softmaxxed[i];
+        if total > num {return i;}
+    }
+    0
+}
 
 /// Creates a training stylized progress bar
 pub fn train_progress_bar(steps: u64) -> ProgressBar {

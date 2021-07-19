@@ -6,7 +6,6 @@ pub use linear::*;
 pub use sequential::*;
 /// Transformer Layers
 mod transformer;
-use tch::nn::Module;
 pub use transformer::*;
 /// RNN Layers
 mod rnn;
@@ -17,6 +16,7 @@ pub use activation::*;
 /// Module tests
 mod tests;
 
+use tch::nn::Module;
 /// A trait for some basic functions a module should have
 pub trait NNModule: Module {
     fn train(&mut self);
