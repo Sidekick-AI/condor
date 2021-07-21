@@ -39,7 +39,7 @@ impl NNModule for Linear {
     fn eval(&mut self) {}
 
     fn count_parameters(&self) -> u64 {
-        self.ws.size().iter().map(|t| {*t as u64}).fold(1u64, |total, val| {total * val})
-        + self.bs.size().iter().map(|t| {*t as u64}).fold(1u64, |total, val| {total * val})
+        self.ws.size().iter().map(|t| {*t as u64}).product::<u64>()
+        + self.bs.size().iter().map(|t| {*t as u64}).product::<u64>()
     }
 }

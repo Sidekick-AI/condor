@@ -11,8 +11,8 @@ pub fn sample_1d(logits: Tensor, temperature: f64) -> usize {
     let softmaxxed = Vec::<f64>::from(logits.div(temperature).softmax(0, Kind::Float));
     let num = thread_rng().gen_range((0.)..1.);
     let mut total = 0.;
-    for i in 0..softmaxxed.len() {
-        total += softmaxxed[i];
+    for (i, val) in softmaxxed.iter().enumerate() {
+        total += val;
         if total > num {return i;}
     }
     0
@@ -32,7 +32,7 @@ pub fn train_progress_bar(steps: u64) -> ProgressBar {
         })
         .with_key("rate", |state| {
             if state.per_sec() < 1. {
-                format!("{:.1}s/it", state.per_sec())
+                format!("{:.1}s/it", 1. / state.per_sec())
             } else {
                 format!("{:.1}it/s", state.per_sec())
             }
@@ -55,7 +55,7 @@ pub fn test_progress_bar(steps: u64) -> ProgressBar {
         })
         .with_key("rate", |state| {
             if state.per_sec() < 1. {
-                format!("{:.1}s/it", state.per_sec())
+                format!("{:.1}s/it", 1. / state.per_sec())
             } else {
                 format!("{:.1}it/s", state.per_sec())
             }
@@ -76,7 +76,7 @@ pub fn readable_number(num: i64) -> String {
 
 pub fn count_parameters(vs: &VarStore) -> u64 {
     vs.trainable_variables().iter().map(|tensor| {
-        tensor.size().iter().map(|t| {*t as u64}).fold(1u64, |total, val| {total * val})
+        tensor.size().iter().map(|t| {*t as u64}).product::<u64>()
     }).sum::<u64>()
 }
 
@@ -85,6 +85,17 @@ pub struct ExponentialAverage<T: Float> {
     moment: f64,
     pub value: T,
     t: i32
+}
+
+impl <T: Float> Default for ExponentialAverage<T> {
+    fn default() -> Self {
+        ExponentialAverage {
+            beta: 0.99,
+            moment: 0.,
+            value: Zero::zero(),
+            t: 0
+        }
+    }
 }
 
 impl <T: Float> ExponentialAverage<T> {

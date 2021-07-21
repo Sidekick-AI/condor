@@ -144,6 +144,7 @@ pub struct TransformerEncoder {
 }
 
 impl TransformerEncoder {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(p: &nn::Path, n_embd: i64, n_head: i64, n_layers: i64, vocab_size: i64, max_len: i64, dropout: f64, causal_mask: bool) -> Self {
         TransformerEncoder {
             token_embedding: nn::embedding(
@@ -216,8 +217,8 @@ impl NNModule for TransformerEncoder {
     }
 
     fn count_parameters(&self) -> u64 {
-        self.token_embedding.ws.size().iter().map(|t| {*t as u64}).fold(1u64, |total, val| {total * val})
-        + self.position_embedding.size().iter().map(|t| {*t as u64}).fold(1u64, |total, val| {total * val})
+        self.token_embedding.ws.size().iter().map(|t| {*t as u64}).product::<u64>()
+        + self.position_embedding.size().iter().map(|t| {*t as u64}).product::<u64>()
         + self.blocks.layers.iter().map(|block| {block.count_parameters()}).sum::<u64>()
     }
 }
@@ -232,6 +233,7 @@ pub struct TransformerAggregator {
 }
 
 impl TransformerAggregator {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(p: &nn::Path, n_embd: i64, n_head: i64, n_layers: i64, aggregation_size: i64, vocab_size: i64, max_len: i64, dropout: f64) -> Self {
         TransformerAggregator {
             encoder: TransformerEncoder::new(&(p / "encoder"), n_embd, n_head, n_layers, vocab_size, max_len, dropout, false),
@@ -256,7 +258,7 @@ impl nn::Module for TransformerAggregator {
         // Embed and append aggregation embedding to beginning
         let mut xs = tch::Tensor::cat(&[
             &self.aggregation_embedding.unsqueeze(0).unsqueeze(0).repeat(&[batch_size, 1, 1]), 
-            &self.encoder.token_embedding.forward(&xs)
+            &self.encoder.token_embedding.forward(xs)
         ], 1);
         // Run through encoder
         xs = self.encoder.forward_no_embed(&xs);

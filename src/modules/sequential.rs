@@ -10,6 +10,14 @@ pub struct Sequential {
     pub layers: Vec<Box<dyn NNModule>>,
 }
 
+impl Default for Sequential {
+    fn default() -> Self {
+        Sequential {
+            layers: vec![]
+        }
+    }
+}
+
 impl Sequential {
     pub fn new() -> Self {
         Sequential {
