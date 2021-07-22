@@ -1,3 +1,6 @@
+/// The NNModule trait
+mod nnmodule;
+pub use nnmodule::*;
 /// Linear Layers
 mod linear;
 pub use linear::*;
@@ -15,11 +18,3 @@ mod activation;
 pub use activation::*;
 /// Module tests
 mod tests;
-
-use tch::nn::Module;
-/// A trait for some basic functions a module should have
-pub trait NNModule: Module {
-    fn train(&mut self);
-    fn eval(&mut self);
-    fn count_parameters(&self) -> u64;
-}

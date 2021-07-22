@@ -1,4 +1,4 @@
-use super::NNModule;
+use super::{ModuleCopy, NNModule};
 use tch::{Tensor, nn};
 
 #[derive(Debug)]
@@ -37,9 +37,13 @@ impl NNModule for Linear {
     fn train(&mut self) {}
 
     fn eval(&mut self) {}
+}
 
-    fn count_parameters(&self) -> u64 {
-        self.ws.size().iter().map(|t| {*t as u64}).product::<u64>()
-        + self.bs.size().iter().map(|t| {*t as u64}).product::<u64>()
+impl ModuleCopy for Linear {
+    fn copy(&mut self, source: &Self) {
+        tch::no_grad(|| {
+            self.ws.copy_(&source.ws);
+            self.bs.copy_(&source.bs);
+        });
     }
 }

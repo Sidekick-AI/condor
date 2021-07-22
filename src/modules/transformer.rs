@@ -1,6 +1,7 @@
-use super::{Linear, NNModule, Sequential};
+use super::{Linear, ModuleCopy, NNModule};
 use tch::nn::{Embedding, LayerNorm, Module};
 use tch::{nn, Device, IndexOp, Kind, Tensor};
+
 
 /// The most basic dot-product self attention with an optional causal mask
 #[derive(Debug)]
@@ -44,9 +45,14 @@ impl NNModule for SelfAttention {
     fn eval(&mut self) {
         self.train = false;
     }
+}
 
-    fn count_parameters(&self) -> u64 {
-        self.key.count_parameters() + self.query.count_parameters() + self.value.count_parameters() + self.proj.count_parameters()
+impl ModuleCopy for SelfAttention {
+    fn copy(&mut self, source: &Self) {
+        self.key.copy(&source.key);
+        self.query.copy(&source.query);
+        self.value.copy(&source.value);
+        self.proj.copy(&source.proj);
     }
 }
 
@@ -124,9 +130,15 @@ impl NNModule for TransformerBlock {
         self.attn.eval();
         self.train = false;
     }
+}
 
-    fn count_parameters(&self) -> u64 {
-        self.attn.count_parameters() + self.linear1.count_parameters() + self.linear2.count_parameters()
+impl ModuleCopy for TransformerBlock {
+    fn copy(&mut self, source: &Self) {
+        self.attn.copy(&source.attn);
+        self.norm1.copy(&source.norm1);
+        self.norm2.copy(&source.norm2);
+        self.linear1.copy(&source.linear1);
+        self.linear2.copy(&source.linear2);
     }
 }
 
@@ -136,7 +148,7 @@ pub struct TransformerEncoder {
     token_embedding: Embedding,
     position_embedding: Tensor,
     layernorm: LayerNorm,
-    blocks: Sequential,
+    blocks: Vec<TransformerBlock>,
     dropout: f64,
     vocab_size: i64,
     n_embed: i64,
@@ -157,9 +169,9 @@ impl TransformerEncoder {
             layernorm: nn::layer_norm(p / "ln_f", vec![n_embd], Default::default()),
             blocks: {
                 //let p = &p.set_group(0);
-                let mut blocks = Sequential::new();
+                let mut blocks = Vec::new();
                 for block_idx in 0..n_layers {
-                    blocks.add(TransformerBlock::new(&(p / block_idx), n_embd, n_head, dropout, causal_mask));
+                    blocks.push(TransformerBlock::new(&(p / block_idx), n_embd, n_head, dropout, causal_mask));
                 }
                 blocks
             },
@@ -177,7 +189,11 @@ impl TransformerEncoder {
         let mut x = (xs + pos_emb)
             .dropout(self.dropout, self.train);
         // Run through transformer blocks
-        x = self.blocks.forward(&x);
+        x = self.blocks[0].forward(&x);
+        x = self.blocks
+            .iter()
+            .skip(1)
+            .fold(x, |x, layer| layer.forward(&x));
         // Return first token
         x.apply(&self.layernorm)
         // output shape: (batch size, n_embd)
@@ -191,10 +207,14 @@ impl nn::Module for TransformerEncoder {
         // Run through embeddings
         let tok_emb = xs.apply(&self.token_embedding);
         let pos_emb = self.position_embedding.i((.., ..sz_t, ..));
-        let mut x = (tok_emb + pos_emb)
+        let x = (tok_emb + pos_emb)
             .dropout(self.dropout, self.train);
         // Run through transformer blocks
-        x = self.blocks.forward(&x);
+        let x = self.blocks[0].forward(&x);
+        let x = self.blocks
+            .iter()
+            .skip(1)
+            .fold(x, |x, layer| layer.forward(&x));
         // Return first token
         x.apply(&self.layernorm)
         // output shape: (batch size, n_embd)
@@ -203,23 +223,31 @@ impl nn::Module for TransformerEncoder {
 
 impl NNModule for TransformerEncoder {
     fn train(&mut self) {
-        for block in &mut self.blocks.layers {
+        for block in &mut self.blocks {
             block.train();
         }
         self.train = true;
     }
 
     fn eval(&mut self) {
-        for block in &mut self.blocks.layers {
+        for block in &mut self.blocks {
             block.eval();
         }
         self.train = false;
     }
+}
 
-    fn count_parameters(&self) -> u64 {
-        self.token_embedding.ws.size().iter().map(|t| {*t as u64}).product::<u64>()
-        + self.position_embedding.size().iter().map(|t| {*t as u64}).product::<u64>()
-        + self.blocks.layers.iter().map(|block| {block.count_parameters()}).sum::<u64>()
+impl ModuleCopy for TransformerEncoder {
+    fn copy(&mut self, source: &Self) {
+        assert_eq!(self.blocks.len(), source.blocks.len());
+        self.token_embedding.copy(&source.token_embedding);
+        tch::no_grad(|| {
+            self.position_embedding.copy_(&source.position_embedding);
+        });
+        self.layernorm.copy(&source.layernorm);
+        for i in 0..self.blocks.len() {
+            self.blocks[i].copy(&source.blocks[i]);
+        }
     }
 }
 
@@ -227,9 +255,9 @@ impl NNModule for TransformerEncoder {
 /// A transformer encoder that aggregates a sequence into a single vector
 #[derive(Debug)]
 pub struct TransformerAggregator {
-    encoder: TransformerEncoder,
-    aggregation_embedding: Tensor,
-    head: Linear
+    pub encoder: TransformerEncoder,
+    pub aggregation_embedding: Tensor,
+    pub head: Linear
 }
 
 impl TransformerAggregator {
@@ -276,17 +304,23 @@ impl NNModule for TransformerAggregator {
     fn eval(&mut self) {
         self.encoder.eval();
     }
+}
 
-    fn count_parameters(&self) -> u64 {
-        self.encoder.count_parameters() + self.head.count_parameters()
+impl ModuleCopy for TransformerAggregator {
+    fn copy(&mut self, source: &Self) {
+        self.encoder.copy(&source.encoder);
+        tch::no_grad(|| {
+            self.aggregation_embedding.copy_(&source.aggregation_embedding);
+        });
+        self.head.copy(&source.head);
     }
 }
 
 /// A simple language model, using a causally masked transformer encoder and a head
 #[derive(Debug)]
 pub struct LanguageModel {
-    transformer: TransformerEncoder,
-    head: Linear
+    pub transformer: TransformerEncoder,
+    pub head: Linear
 }
 
 impl LanguageModel {
@@ -321,8 +355,11 @@ impl NNModule for LanguageModel {
         self.transformer.eval();
         self.head.eval();
     }
+}
 
-    fn count_parameters(&self) -> u64 {
-        self.transformer.count_parameters() + self.head.count_parameters()
+impl ModuleCopy for LanguageModel {
+    fn copy(&mut self, source: &Self) {
+        self.transformer.copy(&source.transformer);
+        self.head.copy(&source.head);
     }
 }

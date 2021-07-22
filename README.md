@@ -8,6 +8,7 @@
 ### TODO
 - [x] Implement linear layers
 - [x] Implement basic transformer layers
+- [ ] Implement sequential
 - [ ] Implement decoder and seq2seq transformer
 - [ ] Implement RNN layers
 - [ ] Implement utilities

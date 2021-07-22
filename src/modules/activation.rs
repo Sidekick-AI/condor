@@ -1,4 +1,4 @@
-use super::NNModule;
+use super::{ModuleCopy, NNModule};
 use tch::{Tensor, nn};
 
 /// The Rectified Linear Units activation function
@@ -15,10 +15,10 @@ impl NNModule for ReLU {
     fn train(&mut self) {}
 
     fn eval(&mut self) {}
+}
 
-    fn count_parameters(&self) -> u64 {
-        0
-    }
+impl ModuleCopy for ReLU {
+    fn copy(&mut self, _: &Self) {}
 }
 
 /// The Gausian Linear Units activation function
@@ -35,10 +35,10 @@ impl NNModule for GeLU {
     fn train(&mut self) {}
 
     fn eval(&mut self) {}
+}
 
-    fn count_parameters(&self) -> u64 {
-        0
-    }
+impl ModuleCopy for GeLU {
+    fn copy(&mut self, _: &Self) {}
 }
 
 /// The sigmoid activation function
@@ -55,10 +55,6 @@ impl NNModule for Sigmoid {
     fn train(&mut self) {}
 
     fn eval(&mut self) {}
-
-    fn count_parameters(&self) -> u64 {
-        0
-    }
 }
 
 /// The Parameterized linear units activation function
@@ -85,8 +81,10 @@ impl NNModule for PReLU {
     fn train(&mut self) {}
 
     fn eval(&mut self) {}
+}
 
-    fn count_parameters(&self) -> u64 {
-        1
+impl ModuleCopy for PReLU {
+    fn copy(&mut self, source: &Self) {
+        self.weight.copy_(&source.weight);
     }
 }

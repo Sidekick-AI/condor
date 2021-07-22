@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod linear_tests {
     use tch::{Device, Kind, Tensor, nn::{self, Module}};
-    use crate::modules::NNModule;
+    use crate::{utils::count_parameters};
 
     use super::super::Linear;
 
@@ -12,7 +12,7 @@ mod linear_tests {
         let input = Tensor::rand(&[64, 100], (Kind::Float, Device::cuda_if_available()));
         let output = layer.forward(&input);
         assert_eq!(output.size(), &[64, 20]);
-        assert_eq!(layer.count_parameters(), 2020);
+        assert_eq!(count_parameters(&vs), 2020);
     }
 }
 
@@ -25,7 +25,9 @@ mod rnn_test {
 mod transformer_test {
     use tch::{Device, Kind, Tensor, nn::{self, Module}};
 
-    use super::super::{NNModule, TransformerAggregator, TransformerEncoder};
+    use crate::utils::count_parameters;
+
+    use super::super::{TransformerAggregator, TransformerEncoder};
 
     #[test]
     fn test_transformer_encoder() {
@@ -41,7 +43,7 @@ mod transformer_test {
         let input = Tensor::randint(99, &[15, 50], (Kind::Int, Device::cuda_if_available()));
         let output = transformer_encoder.forward(&input);
         assert_eq!(output.size(), &[15, 50, 100]);
-        assert_eq!(transformer_encoder.count_parameters(), 262100);
+        assert_eq!(count_parameters(&vs), 263500);
     }
 
     #[test]
@@ -58,7 +60,7 @@ mod transformer_test {
         let input = Tensor::randint(99, &[15, 50], (Kind::Int, Device::cuda_if_available()));
         let output = transformer_aggregator.forward(&input);
         assert_eq!(output.size(), &[15, 150]);
-        assert_eq!(transformer_aggregator.count_parameters(), 277250);
+        assert_eq!(count_parameters(&vs), 278750);
     }
 
     #[test]
@@ -76,14 +78,14 @@ mod transformer_test {
         let input = Tensor::randint(99, &[15, 50], (Kind::Int, Device::cuda_if_available()));
         let output = transformer_aggregator.forward(&input);
         assert_eq!(output.size(), &[15, 150]);
-        assert_eq!(transformer_aggregator.count_parameters(), 277250);
+        assert_eq!(count_parameters(&vs), 278750);
     }
 }
 
 #[cfg(test)]
 mod sequential_tests {
     use tch::{Device, Kind, Tensor, nn::{self, Module}};
-    use crate::{modules::NNModule, sequential};
+    use crate::{sequential, utils::count_parameters};
     use super::super::{Linear, Sequential, PReLU};
 
     #[test]
@@ -96,6 +98,6 @@ mod sequential_tests {
         let input = Tensor::rand(&[64, 100], (Kind::Float, Device::cuda_if_available()));
         let output = seq.forward(&input);
         assert_eq!(output.size(), &[64, 150]);
-        assert_eq!(seq.count_parameters(), 5171);
+        assert_eq!(count_parameters(&vs), 5171);
     }
 }

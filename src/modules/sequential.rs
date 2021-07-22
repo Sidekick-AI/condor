@@ -1,8 +1,5 @@
 use tch::{Tensor, nn::{self, Func, Module}};
-use super::NNModule;
-
-pub trait NeuralModule: Module + NNModule {}
-impl NeuralModule for Func<'_> {}
+use super::{NNModule};
 
 /// A sequential layer combining multiple other layers.
 #[derive(Debug)]
@@ -99,18 +96,20 @@ impl NNModule for Sequential {
             layer.eval();
         }
     }
-
-    fn count_parameters(&self) -> u64 {
-        self.layers.iter().map(|l| {l.count_parameters()}).sum()
-    }
 }
+
+// impl ModuleCopy for Sequential {
+//     fn copy(&mut self, module: &Self) {
+//         for i in 0..self.layers.len() {
+//             self.layers[i].copy(module.layers[i])
+//         }
+//     }
+// }
 
 impl NNModule for Func<'_> {
     fn train(&mut self) {}
 
     fn eval(&mut self) {}
-
-    fn count_parameters(&self) -> u64 {0}
 }
 
 // A macro for making sequentials
