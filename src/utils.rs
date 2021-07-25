@@ -22,7 +22,7 @@ pub fn sample_1d(logits: Tensor, temperature: f64) -> usize {
 pub fn train_progress_bar(steps: u64) -> ProgressBar {
     let bar = ProgressBar::new(steps);
     bar.set_style(ProgressStyle::default_bar()
-        .template("{spinner:.green.bright} │{wide_bar:.green.bright/blue}│{pos:>7}/{len:7}({msg} | {rate} | {eta} | {elapsed_precise})")
+        .template("{spinner:.green.bright} {percent}│{wide_bar:.green.bright/blue}│{pos:>7}/{len:7}({msg} | {rate} | {eta} | {elapsed_precise})")
         .with_key("eta", |state| {
             let secs = state.eta().as_secs();
             let mut string = format!("{:.1}s", state.eta().as_secs_f64() % 60.);
@@ -36,6 +36,9 @@ pub fn train_progress_bar(steps: u64) -> ProgressBar {
             } else {
                 format!("{:.1}it/s", state.per_sec())
             }
+        })
+        .with_key("percent", |state| {
+            format!("{:.1}%", (state.pos as f32 / state.len as f32) * 100.)
         })
         .progress_chars("█▉▊▋▌▍▎▏  "));
     bar
@@ -45,7 +48,7 @@ pub fn train_progress_bar(steps: u64) -> ProgressBar {
 pub fn test_progress_bar(steps: u64) -> ProgressBar {
     let bar = ProgressBar::new(steps);
     bar.set_style(ProgressStyle::default_bar()
-        .template("{spinner:.yellow.bright} │{wide_bar:.yellow.bright/blue}│{pos:>7}/{len:7}({rate} | {eta} | {elapsed_precise})")
+        .template("{spinner:.yellow.bright} {percent}│{wide_bar:.yellow.bright/blue}│{pos:>7}/{len:7}({rate} | {eta} | {elapsed_precise})")
         .with_key("eta", |state| {
             let secs = state.eta().as_secs();
             let mut string = format!("{:.1}s", state.eta().as_secs_f64() % 60.);
@@ -59,6 +62,9 @@ pub fn test_progress_bar(steps: u64) -> ProgressBar {
             } else {
                 format!("{:.1}it/s", state.per_sec())
             }
+        })
+        .with_key("percent", |state| {
+            format!("{:.1}%", (state.pos as f32 / state.len as f32) * 100.)
         })
         .progress_chars("█▉▊▋▌▍▎▏  "));
     bar
