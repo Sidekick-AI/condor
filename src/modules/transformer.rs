@@ -1,4 +1,4 @@
-use super::{Linear, ModuleCopy, NNModule, LayerNorm, Embedding};
+use super::{Embedding, LayerNorm, Linear, ModuleCopy, NNModule, WeightCopyError};
 use tch::{nn, Device, IndexOp, Kind, Tensor};
 
 
@@ -86,11 +86,12 @@ impl NNModule for SelfAttention {
 }
 
 impl ModuleCopy for SelfAttention {
-    fn copy(&mut self, source: &Self) {
-        self.key.copy(&source.key);
-        self.query.copy(&source.query);
-        self.value.copy(&source.value);
-        self.proj.copy(&source.proj);
+    fn copy(&mut self, source: &Self) -> Result<(), WeightCopyError> {
+        self.key.copy(&source.key)?;
+        self.query.copy(&source.query)?;
+        self.value.copy(&source.value)?;
+        self.proj.copy(&source.proj)?;
+        Ok(())
     }
 }
 
@@ -143,12 +144,12 @@ impl NNModule for TransformerBlock {
 }
 
 impl ModuleCopy for TransformerBlock {
-    fn copy(&mut self, source: &Self) {
-        self.attn.copy(&source.attn);
-        self.norm1.copy(&source.norm1);
-        self.norm2.copy(&source.norm2);
-        self.linear1.copy(&source.linear1);
-        self.linear2.copy(&source.linear2);
+    fn copy(&mut self, source: &Self) -> Result<(), WeightCopyError> {
+        self.attn.copy(&source.attn)?;
+        self.norm1.copy(&source.norm1)?;
+        self.norm2.copy(&source.norm2)?;
+        self.linear1.copy(&source.linear1)?;
+        self.linear2.copy(&source.linear2)
     }
 }
 
@@ -245,16 +246,21 @@ impl NNModule for TransformerEncoder {
 }
 
 impl ModuleCopy for TransformerEncoder {
-    fn copy(&mut self, source: &Self) {
+    fn copy(&mut self, source: &Self) -> Result<(), WeightCopyError> {
         assert_eq!(self.blocks.len(), source.blocks.len());
-        self.token_embedding.copy(&source.token_embedding);
+        self.token_embedding.copy(&source.token_embedding)?;
+
+        if self.position_embedding.size() != source.position_embedding.size() {
+            return Err(WeightCopyError::SizeMismatch);
+        }
         tch::no_grad(|| {
             self.position_embedding.copy_(&source.position_embedding);
         });
-        self.layernorm.copy(&source.layernorm);
+        self.layernorm.copy(&source.layernorm)?;
         for i in 0..self.blocks.len() {
-            self.blocks[i].copy(&source.blocks[i]);
+            self.blocks[i].copy(&source.blocks[i])?;
         }
+        Ok(())
     }
 }
 
@@ -312,12 +318,15 @@ impl NNModule for TransformerAggregator {
 }
 
 impl ModuleCopy for TransformerAggregator {
-    fn copy(&mut self, source: &Self) {
-        self.encoder.copy(&source.encoder);
+    fn copy(&mut self, source: &Self) -> Result<(), WeightCopyError> {
+        self.encoder.copy(&source.encoder)?;
+        if self.aggregation_embedding.size() != source.aggregation_embedding.size() {
+            return Err(WeightCopyError::SizeMismatch);
+        }
         tch::no_grad(|| {
             self.aggregation_embedding.copy_(&source.aggregation_embedding);
         });
-        self.head.copy(&source.head);
+        self.head.copy(&source.head)
     }
 }
 
@@ -369,8 +378,8 @@ impl NNModule for LanguageModel {
 }
 
 impl ModuleCopy for LanguageModel {
-    fn copy(&mut self, source: &Self) {
-        self.transformer.copy(&source.transformer);
-        self.head.copy(&source.head);
+    fn copy(&mut self, source: &Self) -> Result<(), WeightCopyError> {
+        self.transformer.copy(&source.transformer)?;
+        self.head.copy(&source.head)
     }
 }

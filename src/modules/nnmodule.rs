@@ -12,7 +12,14 @@ impl Module for dyn NNModule {
     }
 }
 
+
 /// A trait to allow modules to copy weights
 pub trait ModuleCopy {
-    fn copy(&mut self, source: &Self);
+    fn copy(&mut self, source: &Self) -> Result<(), WeightCopyError>;
+}
+
+/// An error type for copying weights
+pub enum WeightCopyError {
+    SizeMismatch,
+    Other(String)
 }

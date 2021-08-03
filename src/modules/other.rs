@@ -1,6 +1,6 @@
 use std::borrow::Borrow;
 use tch::{Tensor, nn::{self, EmbeddingConfig, LayerNormConfig}};
-use super::{NNModule, ModuleCopy};
+use super::{ModuleCopy, NNModule, WeightCopyError};
 
 /// A layer-normalization layer.
 #[derive(Debug)]
@@ -121,26 +121,40 @@ impl<'a> NNModule for Func<'a> {
 }
 
 impl ModuleCopy for LayerNorm {
-    fn copy(&mut self, source: &Self) {
-        tch::no_grad(|| {
-            if let Some(bs_dest) = &mut self.bs {
-                if let Some(bs_source) = &source.bs {
-                    bs_dest.copy_(bs_source)
+    fn copy(&mut self, source: &Self) -> Result<(), WeightCopyError> {
+        if let Some(bs_dest) = &mut self.bs {
+            if let Some(bs_source) = &source.bs {
+                if bs_dest.size() != bs_source.size() {
+                    return Err(WeightCopyError::SizeMismatch);
                 }
+                tch::no_grad(|| {
+                    bs_dest.copy_(bs_source);
+                });
             }
-            if let Some(ws_dest) = &mut self.ws {
-                if let Some(ws_source) = &source.ws {
-                    ws_dest.copy_(ws_source)
+        }
+        if let Some(ws_dest) = &mut self.ws {
+            if let Some(ws_source) = &source.ws {
+                if ws_dest.size() != ws_source.size() {
+                    return Err(WeightCopyError::SizeMismatch);
                 }
+                tch::no_grad(|| {
+                    ws_dest.copy_(ws_source);
+                });
             }
-        });
+        }
+        Ok(())
     }
 }
 
 impl ModuleCopy for Embedding {
-    fn copy(&mut self, source: &Self) {
-        tch::no_grad(|| {
-            self.ws.copy_(&source.ws);
-        });
+    fn copy(&mut self, source: &Self) -> Result<(), WeightCopyError> {
+        if self.ws.size() != source.ws.size() {
+            Err(WeightCopyError::SizeMismatch)
+        } else {
+            tch::no_grad(|| {
+                self.ws.copy_(&source.ws);
+            });
+            Ok(())
+        }
     }
 }

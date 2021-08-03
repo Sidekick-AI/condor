@@ -1,4 +1,4 @@
-use super::{ModuleCopy, NNModule};
+use super::{ModuleCopy, NNModule, WeightCopyError};
 use tch::{Tensor, nn};
 
 /// The Rectified Linear Units activation function
@@ -16,7 +16,7 @@ impl NNModule for ReLU {
 }
 
 impl ModuleCopy for ReLU {
-    fn copy(&mut self, _: &Self) {}
+    fn copy(&mut self, _: &Self) -> Result<(), WeightCopyError> {Ok(())}
 }
 
 /// The Gausian Linear Units activation function
@@ -34,7 +34,7 @@ impl NNModule for GeLU {
 }
 
 impl ModuleCopy for GeLU {
-    fn copy(&mut self, _: &Self) {}
+    fn copy(&mut self, _: &Self) -> Result<(), WeightCopyError> {Ok(())}
 }
 
 /// The sigmoid activation function
@@ -49,6 +49,10 @@ impl NNModule for Sigmoid {
     fn forward(&self, x: &tch::Tensor) -> tch::Tensor {
         x.sigmoid()
     }
+}
+
+impl ModuleCopy for Sigmoid {
+    fn copy(&mut self, _: &Self) -> Result<(), WeightCopyError> {Ok(())}
 }
 
 /// The Parameterized linear units activation function
@@ -76,7 +80,14 @@ impl NNModule for PReLU {
 }
 
 impl ModuleCopy for PReLU {
-    fn copy(&mut self, source: &Self) {
-        self.weight.copy_(&source.weight);
+    fn copy(&mut self, source: &Self) -> Result<(), WeightCopyError> {
+        if self.weight.size() != source.weight.size() {
+            return Err(WeightCopyError::SizeMismatch);
+        } else {
+            tch::no_grad(|| {
+                self.weight.copy_(&source.weight);
+            });
+            Ok(())
+        }
     }
 }

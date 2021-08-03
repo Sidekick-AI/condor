@@ -1,4 +1,4 @@
-use super::{ModuleCopy, NNModule};
+use super::{ModuleCopy, NNModule, WeightCopyError};
 use tch::{Tensor, nn};
 
 #[derive(Debug)]
@@ -47,10 +47,15 @@ impl NNModule for Linear {
 }
 
 impl ModuleCopy for Linear {
-    fn copy(&mut self, source: &Self) {
-        tch::no_grad(|| {
-            self.ws.copy_(&source.ws);
-            self.bs.copy_(&source.bs);
-        });
+    fn copy(&mut self, source: &Self) -> Result<(), WeightCopyError> {
+        if self.ws.size() != source.ws.size() || self.bs.size() != source.bs.size() {
+            Err(WeightCopyError::SizeMismatch)
+        } else {
+            tch::no_grad(|| {
+                self.ws.copy_(&source.ws);
+                self.bs.copy_(&source.bs);
+            });
+            Ok(())
+        }
     }
 }
