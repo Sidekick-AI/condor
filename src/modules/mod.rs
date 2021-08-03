@@ -16,5 +16,8 @@ pub use rnn::*;
 /// Activation Layers
 mod activation;
 pub use activation::*;
+/// Other Layers
+mod other;
+pub use other::*;
 /// Module tests
 mod tests;

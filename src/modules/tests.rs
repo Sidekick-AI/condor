@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod linear_tests {
-    use tch::{Device, Kind, Tensor, nn::{self, Module}};
-    use crate::{utils::count_parameters};
+    use tch::{Device, Kind, Tensor, nn};
+    use crate::{modules::NNModule, utils::count_parameters};
 
     use super::super::Linear;
 
@@ -23,9 +23,9 @@ mod rnn_test {
 
 #[cfg(test)]
 mod transformer_test {
-    use tch::{Device, Kind, Tensor, nn::{self, Module}};
+    use tch::{Device, Kind, Tensor, nn};
 
-    use crate::utils::count_parameters;
+    use crate::{modules::NNModule, utils::count_parameters};
 
     use super::super::{TransformerAggregator, TransformerEncoder};
 
@@ -84,8 +84,8 @@ mod transformer_test {
 
 #[cfg(test)]
 mod sequential_tests {
-    use tch::{Device, Kind, Tensor, nn::{self, Module}};
-    use crate::{sequential, utils::count_parameters};
+    use tch::{Device, Kind, Tensor, nn};
+    use crate::{modules::NNModule, sequential, utils::count_parameters};
     use super::super::{Linear, Sequential, PReLU};
 
     #[test]

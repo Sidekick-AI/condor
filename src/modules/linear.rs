@@ -7,9 +7,12 @@ pub struct Linear {
     pub bs: Tensor,
 }
 
-impl nn::Module for Linear {
-    fn forward(&self, xs: &Tensor) -> Tensor {
-        xs.matmul(&self.ws.tr()) + &self.bs
+impl Clone for Linear {
+    fn clone(&self) -> Self {
+        Linear {
+            ws: self.ws.copy(),
+            bs: self.bs.copy()
+        }
     }
 }
 
@@ -37,6 +40,10 @@ impl NNModule for Linear {
     fn train(&mut self) {}
 
     fn eval(&mut self) {}
+
+    fn forward(&self, x: &tch::Tensor) -> tch::Tensor {
+        x.matmul(&self.ws.tr()) + &self.bs
+    }
 }
 
 impl ModuleCopy for Linear {

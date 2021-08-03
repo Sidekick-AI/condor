@@ -1,5 +1,4 @@
-use super::{Linear, ModuleCopy, NNModule};
-use tch::nn::{Embedding, LayerNorm, Module};
+use super::{Linear, ModuleCopy, NNModule, LayerNorm, Embedding};
 use tch::{nn, Device, IndexOp, Kind, Tensor};
 
 
@@ -37,6 +36,22 @@ impl SelfAttention {
     }
 }
 
+impl Clone for SelfAttention {
+    fn clone(&self) -> Self {
+        SelfAttention {
+            n_head: self.n_head,
+            n_embd: self.n_embd,
+            dropout: self.dropout,
+            key: self.key.clone(),
+            query: self.query.clone(),
+            value: self.value.clone(),
+            proj: self.proj.clone(),
+            train: self.train,
+            causal_mask: self.causal_mask.clone(),
+        }
+    }
+}
+
 impl NNModule for SelfAttention {
     fn train(&mut self) {
         self.train = true;
@@ -45,27 +60,16 @@ impl NNModule for SelfAttention {
     fn eval(&mut self) {
         self.train = false;
     }
-}
 
-impl ModuleCopy for SelfAttention {
-    fn copy(&mut self, source: &Self) {
-        self.key.copy(&source.key);
-        self.query.copy(&source.query);
-        self.value.copy(&source.value);
-        self.proj.copy(&source.proj);
-    }
-}
-
-impl nn::Module for SelfAttention {
-    fn forward(&self, xs: &Tensor) -> Tensor {
-        let (sz_b, sz_t, sz_c) = xs.size3().unwrap();
+    fn forward(&self, x: &tch::Tensor) -> tch::Tensor {
+        let (sz_b, sz_t, sz_c) = x.size3().unwrap();
         let sizes = [sz_b, sz_t, self.n_head, sz_c / self.n_head];
-        let k = xs.apply(&self.key).view(sizes).transpose(1, 2);
-        let q = xs.apply(&self.query).view(sizes).transpose(1, 2);
-        let v = xs.apply(&self.value).view(sizes).transpose(1, 2);
+        let k = self.key.forward(x).view(sizes).transpose(1, 2);
+        let q = self.query.forward(x).view(sizes).transpose(1, 2);
+        let v = self.value.forward(x).view(sizes).transpose(1, 2);
         let mut att = q.matmul(&k.transpose(-2, -1)) * (1.0 / f64::sqrt(sizes[3] as f64));
         if self.causal_mask {
-            let mask = SelfAttention::generate_mask(sz_t, xs.device());
+            let mask = SelfAttention::generate_mask(sz_t, x.device());
             att = att.masked_fill(
                 &mask.i((.., .., ..sz_t, ..sz_t)).eq(0.),
                 std::f64::NEG_INFINITY,
@@ -77,7 +81,16 @@ impl nn::Module for SelfAttention {
             .transpose(1, 2)
             .contiguous()
             .view([sz_b, sz_t, sz_c]);
-        ys.apply(&self.proj).dropout(self.dropout, self.train)
+        self.proj.forward(&ys).dropout(self.dropout, self.train)
+    }
+}
+
+impl ModuleCopy for SelfAttention {
+    fn copy(&mut self, source: &Self) {
+        self.key.copy(&source.key);
+        self.query.copy(&source.query);
+        self.value.copy(&source.value);
+        self.proj.copy(&source.proj);
     }
 }
 
@@ -96,27 +109,14 @@ struct TransformerBlock {
 impl TransformerBlock {
     fn new(p: &nn::Path, n_embd: i64, n_head: i64, dropout: f64, causal_mask: bool) -> Self {
         TransformerBlock {
-            norm1: nn::layer_norm(p / "ln1", vec![n_embd], Default::default()),
-            norm2: nn::layer_norm(p / "ln2", vec![n_embd], Default::default()),
+            norm1: LayerNorm::new(p / "ln1", vec![n_embd]),
+            norm2: LayerNorm::new(p / "ln2", vec![n_embd]),
             attn: SelfAttention::new(&(p / "attn"), n_embd, n_head, dropout, causal_mask),
             linear1: Linear::new(&(p / "lin1"), n_embd, 2 * n_embd),
             linear2: Linear::new(&(p / "lin2"), 2 * n_embd, n_embd),
             dropout,
             train: true
         }
-    }
-}
-
-impl nn::Module for TransformerBlock {
-    fn forward(&self, xs: &Tensor) -> Tensor {
-        let xs = xs + xs.apply(&self.norm1).apply_t(&self.attn, self.train);
-        let ys = xs
-            .apply(&self.norm2)
-            .apply(&self.linear1)
-            .gelu()
-            .apply(&self.linear2)
-            .dropout(self.dropout, self.train);
-        xs + ys
     }
 }
 
@@ -129,6 +129,16 @@ impl NNModule for TransformerBlock {
     fn eval(&mut self) {
         self.attn.eval();
         self.train = false;
+    }
+
+    fn forward(&self, x: &tch::Tensor) -> tch::Tensor {
+        let x = x + self.attn.forward(&self.norm1.forward(x));
+        let ys = self.linear2.forward(
+                &self.linear1.forward(
+                    &self.norm2.forward(&x)
+                ).gelu()
+            ).dropout(self.dropout, self.train);
+        x + ys
     }
 }
 
@@ -159,14 +169,13 @@ impl TransformerEncoder {
     #[allow(clippy::too_many_arguments)]
     pub fn new(p: &nn::Path, n_embd: i64, n_head: i64, n_layers: i64, vocab_size: i64, max_len: i64, dropout: f64, causal_mask: bool) -> Self {
         TransformerEncoder {
-            token_embedding: nn::embedding(
+            token_embedding: Embedding::new(
                 p / "tok_emb",
                 vocab_size,
                 n_embd,
-                Default::default(),
             ),
             position_embedding: p.zeros("pos_emb", &[1, max_len, n_embd]),
-            layernorm: nn::layer_norm(p / "ln_f", vec![n_embd], Default::default()),
+            layernorm: LayerNorm::new(p / "ln_f", vec![n_embd]),
             blocks: {
                 //let p = &p.set_group(0);
                 let mut blocks = Vec::new();
@@ -195,28 +204,7 @@ impl TransformerEncoder {
             .skip(1)
             .fold(x, |x, layer| layer.forward(&x));
         // Return first token
-        x.apply(&self.layernorm)
-        // output shape: (batch size, n_embd)
-    }
-}
-
-impl nn::Module for TransformerEncoder {
-    fn forward(&self, xs: &Tensor) -> Tensor {
-        // xs shape: (batch size, seq len)
-        let (_, sz_t) = xs.size2().unwrap();
-        // Run through embeddings
-        let tok_emb = xs.apply(&self.token_embedding);
-        let pos_emb = self.position_embedding.i((.., ..sz_t, ..));
-        let x = (tok_emb + pos_emb)
-            .dropout(self.dropout, self.train);
-        // Run through transformer blocks
-        let x = self.blocks[0].forward(&x);
-        let x = self.blocks
-            .iter()
-            .skip(1)
-            .fold(x, |x, layer| layer.forward(&x));
-        // Return first token
-        x.apply(&self.layernorm)
+        self.layernorm.forward(&x)
         // output shape: (batch size, n_embd)
     }
 }
@@ -234,6 +222,25 @@ impl NNModule for TransformerEncoder {
             block.eval();
         }
         self.train = false;
+    }
+
+    fn forward(&self, x: &tch::Tensor) -> tch::Tensor {
+        // x shape: (batch size, seq len)
+        let (_, sz_t) = x.size2().unwrap();
+        // Run through embeddings
+        let tok_emb = self.token_embedding.forward(x);
+        let pos_emb = self.position_embedding.i((.., ..sz_t, ..));
+        let x = (tok_emb + pos_emb)
+            .dropout(self.dropout, self.train);
+        // Run through transformer blocks
+        let x = self.blocks[0].forward(&x);
+        let x = self.blocks
+            .iter()
+            .skip(1)
+            .fold(x, |x, layer| layer.forward(&x));
+        // Return first token
+        self.layernorm.forward(&x)
+        // output shape: (batch size, n_embd)
     }
 }
 
@@ -279,23 +286,6 @@ impl TransformerAggregator {
     }
 }
 
-impl nn::Module for TransformerAggregator {
-    fn forward(&self, xs: &Tensor) -> Tensor {
-        // xs shape: (batch size, seq len)
-        let batch_size = xs.size()[0];
-        // Embed and append aggregation embedding to beginning
-        let mut xs = tch::Tensor::cat(&[
-            &self.aggregation_embedding.unsqueeze(0).unsqueeze(0).repeat(&[batch_size, 1, 1]), 
-            &self.encoder.token_embedding.forward(xs)
-        ], 1);
-        // Run through encoder
-        xs = self.encoder.forward_no_embed(&xs);
-        // Return first token
-        xs.i((.., 0, ..)).squeeze_dim(1).apply(&self.head)
-        // output shape: (batch size, n_embd)
-    }
-}
-
 impl NNModule for TransformerAggregator {
     fn train(&mut self) {
         self.encoder.train();
@@ -303,6 +293,21 @@ impl NNModule for TransformerAggregator {
 
     fn eval(&mut self) {
         self.encoder.eval();
+    }
+
+    fn forward(&self, x: &tch::Tensor) -> tch::Tensor {
+        // xs shape: (batch size, seq len)
+        let batch_size = x.size()[0];
+        // Embed and append aggregation embedding to beginning
+        let mut xs = tch::Tensor::cat(&[
+            &self.aggregation_embedding.unsqueeze(0).unsqueeze(0).repeat(&[batch_size, 1, 1]), 
+            &self.encoder.token_embedding.forward(x)
+        ], 1);
+        // Run through encoder
+        xs = self.encoder.forward_no_embed(&xs);
+        // Return first token
+        self.head.forward(&xs.i((.., 0, ..)).squeeze_dim(1))
+        // output shape: (batch size, n_embd)
     }
 }
 
@@ -316,12 +321,18 @@ impl ModuleCopy for TransformerAggregator {
     }
 }
 
+unsafe impl Send for TransformerAggregator {}
+unsafe impl Sync for TransformerAggregator {}
+
 /// A simple language model, using a causally masked transformer encoder and a head
 #[derive(Debug)]
 pub struct LanguageModel {
     pub transformer: TransformerEncoder,
     pub head: Linear
 }
+
+unsafe impl Send for LanguageModel {}
+unsafe impl Sync for LanguageModel {}
 
 impl LanguageModel {
     pub fn new(p: &nn::Path, n_embd: i64, n_head: i64, n_layers: i64, vocab_size: i64, max_len: i64, dropout: f64) -> Self {
@@ -339,12 +350,6 @@ impl LanguageModel {
     }
 }
 
-impl nn::Module for LanguageModel {
-    fn forward(&self, xs: &Tensor) -> Tensor {
-        xs.apply(&self.transformer).apply(&self.head)
-    }
-}
-
 impl NNModule for LanguageModel {
     fn train(&mut self) {
         self.transformer.train();
@@ -354,6 +359,12 @@ impl NNModule for LanguageModel {
     fn eval(&mut self) {
         self.transformer.eval();
         self.head.eval();
+    }
+
+    fn forward(&self, x: &tch::Tensor) -> tch::Tensor {
+        self.head.forward(
+            &self.transformer.forward(x)
+        )
     }
 }
 

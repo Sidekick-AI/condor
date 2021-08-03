@@ -1,4 +1,4 @@
-use tch::{Tensor, nn::{self, Func, Module}};
+use tch::Tensor;
 use super::{NNModule};
 
 /// A sequential layer combining multiple other layers.
@@ -39,20 +39,6 @@ impl Sequential {
     }
 }
 
-impl Module for Sequential {
-    fn forward(&self, xs: &Tensor) -> Tensor {
-        if self.layers.is_empty() {
-            xs.shallow_clone()
-        } else {
-            let xs = self.layers[0].forward(xs);
-            self.layers
-                .iter()
-                .skip(1)
-                .fold(xs, |xs, layer| layer.forward(&xs))
-        }
-    }
-}
-
 impl Sequential {
     /// Appends a layer after all the current layers.
     #[allow(clippy::should_implement_trait)]
@@ -61,8 +47,8 @@ impl Sequential {
     }
 
     /// Appends a closure after all the current layers.
-    pub fn add_fn<F: 'static + Fn(&Tensor) -> Tensor + Send>(&mut self, f: F) {
-        self.add(nn::func(f))
+    pub fn add_fn<F: 'static + Fn(&Tensor, bool) -> Tensor + Send>(&mut self, f: F) {
+        self.add(super::func(f))
     }
 
     /// Applies the forward pass and returns the output for each layer.
@@ -96,6 +82,18 @@ impl NNModule for Sequential {
             layer.eval();
         }
     }
+
+    fn forward(&self, x: &tch::Tensor) -> tch::Tensor {
+        if self.layers.is_empty() {
+            x.shallow_clone()
+        } else {
+            let x = self.layers[0].forward(x);
+            self.layers
+                .iter()
+                .skip(1)
+                .fold(x, |x, layer| layer.forward(&x))
+        }
+    }
 }
 
 // impl ModuleCopy for Sequential {
@@ -106,11 +104,6 @@ impl NNModule for Sequential {
 //     }
 // }
 
-impl NNModule for Func<'_> {
-    fn train(&mut self) {}
-
-    fn eval(&mut self) {}
-}
 
 // A macro for making sequentials
 #[macro_use]

@@ -1,50 +1,18 @@
-use tch::nn::{Embedding, LayerNorm, Module};
+use tch::nn::Module;
 /// A trait for some basic functions a module should have
-pub trait NNModule: Module {
+pub trait NNModule: std::fmt::Debug + Send {
     fn train(&mut self);
     fn eval(&mut self);
+    fn forward(&self, x: &tch::Tensor) -> tch::Tensor;
 }
 
-/// Implementation of NNModule for LayerNorm
-impl NNModule for LayerNorm {
-    fn train(&mut self) {}
-
-    fn eval(&mut self) {}
-}
-
-/// Implementation of NNModule for Embedding
-impl NNModule for Embedding {
-    fn train(&mut self) {}
-
-    fn eval(&mut self) {}
+impl Module for dyn NNModule {
+    fn forward(&self, xs: &tch::Tensor) -> tch::Tensor {
+        self.forward(&xs)
+    }
 }
 
 /// A trait to allow modules to copy weights
 pub trait ModuleCopy {
     fn copy(&mut self, source: &Self);
-}
-
-impl ModuleCopy for LayerNorm {
-    fn copy(&mut self, source: &Self) {
-        tch::no_grad(|| {
-            if let Some(bs_dest) = &mut self.bs {
-                if let Some(bs_source) = &source.bs {
-                    bs_dest.copy_(bs_source)
-                }
-            }
-            if let Some(ws_dest) = &mut self.ws {
-                if let Some(ws_source) = &source.ws {
-                    ws_dest.copy_(ws_source)
-                }
-            }
-        });
-    }
-}
-
-impl ModuleCopy for Embedding {
-    fn copy(&mut self, source: &Self) {
-        tch::no_grad(|| {
-            self.ws.copy_(&source.ws);
-        });
-    }
 }

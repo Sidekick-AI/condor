@@ -5,16 +5,14 @@ use tch::{Tensor, nn};
 #[derive(Debug)]
 pub struct ReLU;
 
-impl nn::Module for ReLU {
-    fn forward(&self, xs: &Tensor) -> Tensor {
-        xs.relu()
-    }
-}
-
 impl NNModule for ReLU {
     fn train(&mut self) {}
 
     fn eval(&mut self) {}
+
+    fn forward(&self, x: &tch::Tensor) -> tch::Tensor {
+        x.relu()
+    }
 }
 
 impl ModuleCopy for ReLU {
@@ -25,16 +23,14 @@ impl ModuleCopy for ReLU {
 #[derive(Debug)]
 pub struct GeLU;
 
-impl nn::Module for GeLU {
-    fn forward(&self, xs: &Tensor) -> Tensor {
-        xs.gelu()
-    }
-}
-
 impl NNModule for GeLU {
     fn train(&mut self) {}
 
     fn eval(&mut self) {}
+
+    fn forward(&self, x: &tch::Tensor) -> tch::Tensor {
+        x.gelu()
+    }
 }
 
 impl ModuleCopy for GeLU {
@@ -45,16 +41,14 @@ impl ModuleCopy for GeLU {
 #[derive(Debug)]
 pub struct Sigmoid;
 
-impl nn::Module for Sigmoid {
-    fn forward(&self, xs: &Tensor) -> Tensor {
-        xs.sigmoid()
-    }
-}
-
 impl NNModule for Sigmoid {
     fn train(&mut self) {}
 
     fn eval(&mut self) {}
+
+    fn forward(&self, x: &tch::Tensor) -> tch::Tensor {
+        x.sigmoid()
+    }
 }
 
 /// The Parameterized linear units activation function
@@ -71,16 +65,14 @@ impl PReLU {
     }
 }
 
-impl nn::Module for PReLU {
-    fn forward(&self, xs: &Tensor) -> Tensor {
-        xs.prelu(&self.weight)
-    }
-}
-
 impl NNModule for PReLU {
     fn train(&mut self) {}
 
     fn eval(&mut self) {}
+
+    fn forward(&self, x: &tch::Tensor) -> tch::Tensor {
+        x.prelu(&self.weight)
+    }
 }
 
 impl ModuleCopy for PReLU {
