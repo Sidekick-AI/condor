@@ -11,6 +11,6 @@
 - [ ] Implement sequential
 - [ ] Implement decoder and seq2seq transformer
 - [ ] Implement RNN layers
-- [ ] Implement utilities
+- [x] Implement utilities
 - [ ] Implement more exotic architectures
 - [ ] Write more detailed tests (check tensor data)
