@@ -3,7 +3,49 @@ use std::ops::Div;
 use crate::other_crates::indicatif::{ProgressBar, ProgressStyle};
 use num::{Float, Zero};
 use rand::{Rng, thread_rng};
-use tch::{Kind, Tensor, nn::VarStore};
+use tch::{Kind, Tensor, nn::{Optimizer, VarStore}};
+
+
+pub struct DecayingOptimizer<T> {
+    optimizer: Optimizer<T>,
+    lr: f64,
+    decay: f64
+}
+
+impl<T> DecayingOptimizer<T> {
+    pub fn new(optimizer: Optimizer<T>, initial_lr: f64, decay: f64) -> Self {
+        DecayingOptimizer {
+            optimizer,
+            lr: initial_lr,
+            decay
+        }
+    }
+
+    /// Decay the learning rate
+    pub fn step_lr(&mut self) {
+        self.lr *= self.decay;
+        self.optimizer.set_lr(self.lr);
+    }
+
+    /// Get the current learning rate
+    pub fn get_lr(&self) -> f64 {
+        self.lr
+    }
+}
+
+impl<T> core::ops::Deref for DecayingOptimizer<T> {
+    type Target = Optimizer<T>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.optimizer
+    }
+}
+
+impl<T> core::ops::DerefMut for DecayingOptimizer<T> {
+    fn deref_mut(&mut self) -> &mut Optimizer<T> {
+        &mut self.optimizer
+    }
+}
 
 /// Sample from distribution TODO: make more generalized sampling
 pub fn sample_1d(logits: Tensor, temperature: f64) -> usize {
@@ -108,6 +150,16 @@ impl <T: Float> ExponentialAverage<T> {
     pub fn new() -> Self {
         ExponentialAverage {
             beta: 0.99,
+            moment: 0.,
+            value: Zero::zero(),
+            t: 0
+        }
+    }
+
+    pub fn with_beta(beta: f64) -> Self {
+        assert!(beta <= 1. && beta >= 0.);
+        ExponentialAverage {
+            beta,
             moment: 0.,
             value: Zero::zero(),
             t: 0

@@ -19,6 +19,7 @@ pub trait ModuleCopy {
 }
 
 /// An error type for copying weights
+#[derive(Debug)]
 pub enum WeightCopyError {
     SizeMismatch,
     Other(String)
