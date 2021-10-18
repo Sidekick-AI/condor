@@ -114,6 +114,7 @@ pub struct TransformerBlock {
 
 impl TransformerBlock {
     fn new(p: &nn::Path, n_embd: i64, n_head: i64, dropout: f64, causal_mask: bool) -> Self {
+        assert!(n_embd % n_head == 0, "Embedding size ({}) must be divisible by number of heads ({})!", n_embd, n_head);
         TransformerBlock {
             norm1: LayerNorm::new(p / "ln1", vec![n_embd]),
             norm2: LayerNorm::new(p / "ln2", vec![n_embd]),
@@ -191,10 +192,10 @@ impl TransformerEncoder {
                 PositionalEncoding::Learned => LocalPositionalEncoding::Learned(p.randn("pos_emb", &[1, max_len, n_embd], 0., 0.5)),
                 PositionalEncoding::Sinusoidal => {
                     // Build the sinusoidal vector (This is based on an online implementation here: https://towardsdatascience.com/how-to-code-the-transformer-in-pytorch-24db27c8f9ec#d554
-                    let mut pe = vec![vec![0.; max_len as usize]; n_embd as usize];
+                    let mut pe = vec![vec![0.; n_embd as usize]; max_len as usize];
                     for pos in 0..max_len as usize {
                         for i in 0..n_embd as usize {
-                            pe[i][pos] = (pos as f64 / f64::powf(10000., (2.*i as f64) / n_embd as f64)).sin();
+                            pe[pos][i] = (pos as f64 / f64::powf(10000., (2.*i as f64) / n_embd as f64)).sin();
                         }
                     }
                     LocalPositionalEncoding::Sinusoidal(Tensor::of_slice2(&pe).to_kind(Kind::Float).to(p.device())) // Doesn't need to be a variable, we aren't tracking it's gradients
@@ -220,7 +221,7 @@ impl TransformerEncoder {
         // xs shape: (batch size, seq len, n_embd)
         let (batch_size, sz_t, _) = xs.size3().unwrap();
         let pos_emb = match &self.position_embedding {
-            LocalPositionalEncoding::Learned(l) => l.i((.., ..sz_t, ..)),
+            LocalPositionalEncoding::Learned(l) => l.i((.., ..sz_t, ..)).repeat(&[batch_size, 1, 1]),
             LocalPositionalEncoding::Sinusoidal(pe) => {
                 pe.i(..sz_t).repeat(&[batch_size, 1, 1])
             }
@@ -260,7 +261,7 @@ impl NNModule for TransformerEncoder {
         // Run through embeddings
         let tok_emb = self.token_embedding.forward(x);
         let pos_emb = match &self.position_embedding {
-            LocalPositionalEncoding::Learned(l) => l.i((.., ..sz_t, ..)),
+            LocalPositionalEncoding::Learned(l) => l.i((.., ..sz_t, ..)).repeat(&[batch_size, 1, 1]),
             LocalPositionalEncoding::Sinusoidal(pe) => {
                 pe.i(..sz_t).repeat(&[batch_size, 1, 1])
             }

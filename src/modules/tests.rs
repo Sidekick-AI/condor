@@ -36,15 +36,15 @@ mod transformer_test {
         100, 
         10, 
         3, 
-        100, 
-        crate::modules::PositionalEncoding::Sinusoidal, 
-        100,
+        120, 
+        crate::modules::PositionalEncoding::Learned, 
+        110,
         0.1, 
         true);
-        let input = Tensor::randint(99, &[15, 50], (Kind::Int, Device::cuda_if_available()));
+        let input = Tensor::randint(119, &[15, 50], (Kind::Int, Device::cuda_if_available()));
         let output = transformer_encoder.forward(&input);
         assert_eq!(output.size(), &[15, 50, 100]);
-        assert_eq!(count_parameters(&vs), 253500);
+        assert_eq!(count_parameters(&vs), 266500);
     }
 
     #[test]
@@ -55,14 +55,14 @@ mod transformer_test {
         10, 
         3, 
         150,
-        100,
+        120,
         crate::modules::PositionalEncoding::Learned,
-        100, 
+        110, 
         0.1);
-        let input = Tensor::randint(99, &[15, 50], (Kind::Int, Device::cuda_if_available()));
+        let input = Tensor::randint(119, &[15, 50], (Kind::Int, Device::cuda_if_available()));
         let output = transformer_aggregator.forward(&input);
         assert_eq!(output.size(), &[15, 150]);
-        assert_eq!(count_parameters(&vs), 278750);
+        assert_eq!(count_parameters(&vs), 281750);
     }
 
     #[test]
@@ -72,16 +72,16 @@ mod transformer_test {
         100, 
         10, 
         3, 
-        100, 
+        120, 
         crate::modules::PositionalEncoding::Learned, 
-        100,
+        110,
         0.1, 
         true);
         let transformer_aggregator = TransformerAggregator::from_encoder(&(&vs.root() / "transformer"), transformer_encoder, 150);
-        let input = Tensor::randint(99, &[15, 50], (Kind::Int, Device::cuda_if_available()));
+        let input = Tensor::randint(119, &[15, 50], (Kind::Int, Device::cuda_if_available()));
         let output = transformer_aggregator.forward(&input);
         assert_eq!(output.size(), &[15, 150]);
-        assert_eq!(count_parameters(&vs), 278750);
+        assert_eq!(count_parameters(&vs), 281750);
     }
 }
 

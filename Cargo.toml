@@ -1,6 +1,6 @@
 [package]
 name = "condor"
-version = "0.1.5"
+version = "0.1.6"
 edition = "2018"
 description = "Condor is an ergonomic wrapper around the tch library for Rust."
 license = "MIT OR Apache-2.0"
