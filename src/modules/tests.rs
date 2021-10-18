@@ -37,13 +37,14 @@ mod transformer_test {
         10, 
         3, 
         100, 
-        100, 
+        crate::modules::PositionalEncoding::Sinusoidal, 
+        100,
         0.1, 
         true);
         let input = Tensor::randint(99, &[15, 50], (Kind::Int, Device::cuda_if_available()));
         let output = transformer_encoder.forward(&input);
         assert_eq!(output.size(), &[15, 50, 100]);
-        assert_eq!(count_parameters(&vs), 263500);
+        assert_eq!(count_parameters(&vs), 253500);
     }
 
     #[test]
@@ -55,6 +56,7 @@ mod transformer_test {
         3, 
         150,
         100,
+        crate::modules::PositionalEncoding::Learned,
         100, 
         0.1);
         let input = Tensor::randint(99, &[15, 50], (Kind::Int, Device::cuda_if_available()));
@@ -71,7 +73,8 @@ mod transformer_test {
         10, 
         3, 
         100, 
-        100, 
+        crate::modules::PositionalEncoding::Learned, 
+        100,
         0.1, 
         true);
         let transformer_aggregator = TransformerAggregator::from_encoder(&(&vs.root() / "transformer"), transformer_encoder, 150);

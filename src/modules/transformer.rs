@@ -1,6 +1,11 @@
 use super::{Embedding, LayerNorm, Linear, ModuleCopy, NNModule, WeightCopyError};
 use tch::{nn, Device, IndexOp, Kind, Tensor};
 
+/// Different types of positional encoding for Transformers
+pub enum PositionalEncoding {
+    Learned,
+    Sinusoidal,
+}
 
 /// The most basic dot-product self attention with an optional causal mask
 #[derive(Debug)]
@@ -97,7 +102,7 @@ impl ModuleCopy for SelfAttention {
 
 /// A basic transformer encoder block
 #[derive(Debug)]
-struct TransformerBlock {
+pub struct TransformerBlock {
     norm1: LayerNorm,
     norm2: LayerNorm,
     attn: SelfAttention,
@@ -157,7 +162,7 @@ impl ModuleCopy for TransformerBlock {
 #[derive(Debug)]
 pub struct TransformerEncoder {
     token_embedding: Embedding,
-    position_embedding: Tensor,
+    position_embedding: LocalPositionalEncoding,
     layernorm: LayerNorm,
     blocks: Vec<TransformerBlock>,
     dropout: f64,
@@ -166,16 +171,35 @@ pub struct TransformerEncoder {
     train: bool,
 }
 
+/// An enum for positional encoding which conains a tensor (only used internally)
+#[derive(Debug, PartialEq)]
+enum LocalPositionalEncoding {
+    Learned(Tensor),
+    Sinusoidal(Tensor),
+}
+
 impl TransformerEncoder {
     #[allow(clippy::too_many_arguments)]
-    pub fn new(p: &nn::Path, n_embd: i64, n_head: i64, n_layers: i64, vocab_size: i64, max_len: i64, dropout: f64, causal_mask: bool) -> Self {
+    pub fn new(p: &nn::Path, n_embd: i64, n_head: i64, n_layers: i64, vocab_size: i64, positional_encoding: PositionalEncoding, max_len: i64, dropout: f64, causal_mask: bool) -> Self {
         TransformerEncoder {
             token_embedding: Embedding::new(
                 p / "tok_emb",
                 vocab_size,
                 n_embd,
             ),
-            position_embedding: p.zeros("pos_emb", &[1, max_len, n_embd]),
+            position_embedding: match positional_encoding {
+                PositionalEncoding::Learned => LocalPositionalEncoding::Learned(p.randn("pos_emb", &[1, max_len, n_embd], 0., 0.5)),
+                PositionalEncoding::Sinusoidal => {
+                    // Build the sinusoidal vector (This is based on an online implementation here: https://towardsdatascience.com/how-to-code-the-transformer-in-pytorch-24db27c8f9ec#d554
+                    let mut pe = vec![vec![0.; max_len as usize]; n_embd as usize];
+                    for pos in 0..max_len as usize {
+                        for i in 0..n_embd as usize {
+                            pe[i][pos] = (pos as f64 / f64::powf(10000., (2.*i as f64) / n_embd as f64)).sin();
+                        }
+                    }
+                    LocalPositionalEncoding::Sinusoidal(Tensor::of_slice2(&pe).to_kind(Kind::Float).to(p.device())) // Doesn't need to be a variable, we aren't tracking it's gradients
+                }
+            },
             layernorm: LayerNorm::new(p / "ln_f", vec![n_embd]),
             blocks: {
                 //let p = &p.set_group(0);
@@ -194,8 +218,13 @@ impl TransformerEncoder {
 
     pub fn forward_no_embed(&self, xs: &Tensor) -> Tensor {
         // xs shape: (batch size, seq len, n_embd)
-        let (_, sz_t, _) = xs.size3().unwrap();
-        let pos_emb = self.position_embedding.i((.., ..sz_t, ..));
+        let (batch_size, sz_t, _) = xs.size3().unwrap();
+        let pos_emb = match &self.position_embedding {
+            LocalPositionalEncoding::Learned(l) => l.i((.., ..sz_t, ..)),
+            LocalPositionalEncoding::Sinusoidal(pe) => {
+                pe.i(..sz_t).repeat(&[batch_size, 1, 1])
+            }
+        };
         let mut x = (xs + pos_emb)
             .dropout(self.dropout, self.train);
         // Run through transformer blocks
@@ -227,10 +256,15 @@ impl NNModule for TransformerEncoder {
 
     fn forward(&self, x: &tch::Tensor) -> tch::Tensor {
         // x shape: (batch size, seq len)
-        let (_, sz_t) = x.size2().unwrap();
+        let (batch_size, sz_t) = x.size2().unwrap();
         // Run through embeddings
         let tok_emb = self.token_embedding.forward(x);
-        let pos_emb = self.position_embedding.i((.., ..sz_t, ..));
+        let pos_emb = match &self.position_embedding {
+            LocalPositionalEncoding::Learned(l) => l.i((.., ..sz_t, ..)),
+            LocalPositionalEncoding::Sinusoidal(pe) => {
+                pe.i(..sz_t).repeat(&[batch_size, 1, 1])
+            }
+        };
         let x = (tok_emb + pos_emb)
             .dropout(self.dropout, self.train);
         // Run through transformer blocks
@@ -249,12 +283,23 @@ impl ModuleCopy for TransformerEncoder {
     fn copy(&mut self, source: &Self) -> Result<(), WeightCopyError> {
         assert_eq!(self.blocks.len(), source.blocks.len());
         self.token_embedding.copy(&source.token_embedding)?;
-
-        if self.position_embedding.size() != source.position_embedding.size() {
+        let (source_tensor, source_kind) = match &source.position_embedding {
+            LocalPositionalEncoding::Learned(t) => (t, true),
+            LocalPositionalEncoding::Sinusoidal(t) => (t, false),
+        };
+        let (target_tensor, target_kind) = match &mut self.position_embedding {
+            LocalPositionalEncoding::Learned(t) => (t, true),
+            LocalPositionalEncoding::Sinusoidal(t) => (t, false),
+        };
+        if source_kind != target_kind {
+            return Err(WeightCopyError::Other("Positional Encodings are of wrong type!".to_string()));
+        }
+        if source_tensor.size() != target_tensor.size() {
             return Err(WeightCopyError::SizeMismatch);
         }
+
         tch::no_grad(|| {
-            self.position_embedding.copy_(&source.position_embedding);
+            target_tensor.copy_(source_tensor);
         });
         self.layernorm.copy(&source.layernorm)?;
         for i in 0..self.blocks.len() {
@@ -275,9 +320,9 @@ pub struct TransformerAggregator {
 
 impl TransformerAggregator {
     #[allow(clippy::too_many_arguments)]
-    pub fn new(p: &nn::Path, n_embd: i64, n_head: i64, n_layers: i64, aggregation_size: i64, vocab_size: i64, max_len: i64, dropout: f64) -> Self {
+    pub fn new(p: &nn::Path, n_embd: i64, n_head: i64, n_layers: i64, aggregation_size: i64, vocab_size: i64, positional_encoding: PositionalEncoding, max_len: i64, dropout: f64) -> Self {
         TransformerAggregator {
-            encoder: TransformerEncoder::new(&(p / "encoder"), n_embd, n_head, n_layers, vocab_size, max_len, dropout, false),
+            encoder: TransformerEncoder::new(&(p / "encoder"), n_embd, n_head, n_layers, vocab_size, positional_encoding, max_len, dropout, false),
             head: Linear::new(&(p / "aggregation_head"), n_embd, aggregation_size),
             aggregation_embedding: p.randn("aggregation_vector", &[n_embd], 0.0, 0.2),
         }
@@ -344,9 +389,9 @@ unsafe impl Send for LanguageModel {}
 unsafe impl Sync for LanguageModel {}
 
 impl LanguageModel {
-    pub fn new(p: &nn::Path, n_embd: i64, n_head: i64, n_layers: i64, vocab_size: i64, max_len: i64, dropout: f64) -> Self {
+    pub fn new(p: &nn::Path, n_embd: i64, n_head: i64, n_layers: i64, vocab_size: i64, positional_encoding: PositionalEncoding, max_len: i64, dropout: f64) -> Self {
         LanguageModel {
-            transformer: TransformerEncoder::new(&(p / "transformer"), n_embd, n_head, n_layers, vocab_size, max_len, dropout, true),
+            transformer: TransformerEncoder::new(&(p / "transformer"), n_embd, n_head, n_layers, vocab_size, positional_encoding, max_len, dropout, true),
             head: Linear::new(&(p / "lm_head"), n_embd, vocab_size)
         }
     }
