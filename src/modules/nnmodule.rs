@@ -3,14 +3,7 @@ use tch::nn::Module;
 pub trait NNModule: std::fmt::Debug + Send {
     fn train(&mut self);
     fn eval(&mut self);
-    fn forward(&mut self, x: &tch::Tensor) -> tch::Tensor;
-}
-
-impl Module for dyn NNModule {
-    #[allow(unconditional_recursion)] // Not sure if we should allow this
-    fn forward(&self, xs: &tch::Tensor) -> tch::Tensor {
-        self.forward(xs)
-    }
+    fn forward<I, O>(&mut self, x: I) -> O;
 }
 
 
