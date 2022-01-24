@@ -2,9 +2,11 @@ use super::{Embedding, LayerNorm, Linear, ModuleCopy, NNModule, WeightCopyError}
 use tch::{nn, Device, IndexOp, Kind, Tensor};
 
 /// Different types of positional encoding for Transformers
+#[derive(PartialEq, Eq)]
 pub enum PositionalEncoding {
     Learned,
     Sinusoidal,
+    Rotary,
 }
 
 /// The most basic dot-product self attention with an optional causal mask
@@ -52,7 +54,7 @@ impl Clone for SelfAttention {
             value: self.value.clone(),
             proj: self.proj.clone(),
             train: self.train,
-            causal_mask: self.causal_mask.clone(),
+            causal_mask: self.causal_mask,
         }
     }
 }
@@ -66,7 +68,7 @@ impl NNModule for SelfAttention {
         self.train = false;
     }
 
-    fn forward(&self, x: &tch::Tensor) -> tch::Tensor {
+    fn forward(&mut self, x: &tch::Tensor) -> tch::Tensor {
         let (sz_b, sz_t, sz_c) = x.size3().unwrap();
         let sizes = [sz_b, sz_t, self.n_head, sz_c / self.n_head];
         let k = self.key.forward(x).view(sizes).transpose(1, 2);
@@ -138,7 +140,7 @@ impl NNModule for TransformerBlock {
         self.train = false;
     }
 
-    fn forward(&self, x: &tch::Tensor) -> tch::Tensor {
+    fn forward(&mut self, x: &tch::Tensor) -> tch::Tensor {
         let x = x + self.attn.forward(&self.norm1.forward(x));
         let ys = self.linear2.forward(
                 &self.linear1.forward(
@@ -177,6 +179,7 @@ pub struct TransformerEncoder {
 enum LocalPositionalEncoding {
     Learned(Tensor),
     Sinusoidal(Tensor),
+    Rotary{inv_freq: Tensor, seq_len_cached: usize, cos_cached: Tensor, sin_cached: Tensor},
 }
 
 impl TransformerEncoder {
@@ -193,12 +196,23 @@ impl TransformerEncoder {
                 PositionalEncoding::Sinusoidal => {
                     // Build the sinusoidal vector (This is based on an online implementation here: https://towardsdatascience.com/how-to-code-the-transformer-in-pytorch-24db27c8f9ec#d554
                     let mut pe = vec![vec![0.; n_embd as usize]; max_len as usize];
+                    #[allow(clippy::needless_range_loop)]
                     for pos in 0..max_len as usize {
                         for i in 0..n_embd as usize {
                             pe[pos][i] = (pos as f64 / f64::powf(10000., (2.*i as f64) / n_embd as f64)).sin();
                         }
                     }
                     LocalPositionalEncoding::Sinusoidal(Tensor::of_slice2(&pe).to_kind(Kind::Float).to(p.device())) // Doesn't need to be a variable, we aren't tracking it's gradients
+                },
+                PositionalEncoding::Rotary => {
+                    // Build rotary vector
+                    let inv_freq = 1.0 / (tch::Tensor::pow_scalar(10_000, &(tch::Tensor::arange_start_step(0, 2, 2, (Kind::Float, p.device())) / 2)));
+                    LocalPositionalEncoding::Rotary{
+                        inv_freq,
+                        seq_len_cached: 0,
+                        cos_cached: Tensor::empty(&[1], (Kind::Float, p.device())),
+                        sin_cached: Tensor::empty(&[1], (Kind::Float, p.device())),
+                    }
                 }
             },
             layernorm: LayerNorm::new(p / "ln_f", vec![n_embd]),
@@ -217,13 +231,16 @@ impl TransformerEncoder {
         }
     }
 
-    pub fn forward_no_embed(&self, xs: &Tensor) -> Tensor {
+    pub fn forward_no_embed(&mut self, xs: &Tensor) -> Tensor {
         // xs shape: (batch size, seq len, n_embd)
         let (batch_size, sz_t, _) = xs.size3().unwrap();
-        let pos_emb = match &self.position_embedding {
+        let pos_emb = match &mut self.position_embedding {
             LocalPositionalEncoding::Learned(l) => l.i((.., ..sz_t, ..)).repeat(&[batch_size, 1, 1]),
             LocalPositionalEncoding::Sinusoidal(pe) => {
                 pe.i(..sz_t).repeat(&[batch_size, 1, 1])
+            },
+            LocalPositionalEncoding::Rotary { inv_freq, seq_len_cached, cos_cached, sin_cached } => {
+                todo!()
             }
         };
         let mut x = (xs + pos_emb)
@@ -231,7 +248,7 @@ impl TransformerEncoder {
         // Run through transformer blocks
         x = self.blocks[0].forward(&x);
         x = self.blocks
-            .iter()
+            .iter_mut()
             .skip(1)
             .fold(x, |x, layer| layer.forward(&x));
         // Return first token
@@ -255,15 +272,18 @@ impl NNModule for TransformerEncoder {
         self.train = false;
     }
 
-    fn forward(&self, x: &tch::Tensor) -> tch::Tensor {
+    fn forward(&mut self, x: &tch::Tensor) -> tch::Tensor {
         // x shape: (batch size, seq len)
         let (batch_size, sz_t) = x.size2().unwrap();
         // Run through embeddings
         let tok_emb = self.token_embedding.forward(x);
-        let pos_emb = match &self.position_embedding {
+        let pos_emb = match &mut self.position_embedding {
             LocalPositionalEncoding::Learned(l) => l.i((.., ..sz_t, ..)).repeat(&[batch_size, 1, 1]),
             LocalPositionalEncoding::Sinusoidal(pe) => {
                 pe.i(..sz_t).repeat(&[batch_size, 1, 1])
+            },
+            LocalPositionalEncoding::Rotary{inv_freq, seq_len_cached, cos_cached, sin_cached} => {
+                todo!()
             }
         };
         let x = (tok_emb + pos_emb)
@@ -271,7 +291,7 @@ impl NNModule for TransformerEncoder {
         // Run through transformer blocks
         let x = self.blocks[0].forward(&x);
         let x = self.blocks
-            .iter()
+            .iter_mut()
             .skip(1)
             .fold(x, |x, layer| layer.forward(&x));
         // Return first token
@@ -284,24 +304,44 @@ impl ModuleCopy for TransformerEncoder {
     fn copy(&mut self, source: &Self) -> Result<(), WeightCopyError> {
         assert_eq!(self.blocks.len(), source.blocks.len());
         self.token_embedding.copy(&source.token_embedding)?;
-        let (source_tensor, source_kind) = match &source.position_embedding {
-            LocalPositionalEncoding::Learned(t) => (t, true),
-            LocalPositionalEncoding::Sinusoidal(t) => (t, false),
-        };
-        let (target_tensor, target_kind) = match &mut self.position_embedding {
-            LocalPositionalEncoding::Learned(t) => (t, true),
-            LocalPositionalEncoding::Sinusoidal(t) => (t, false),
-        };
-        if source_kind != target_kind {
-            return Err(WeightCopyError::Other("Positional Encodings are of wrong type!".to_string()));
-        }
-        if source_tensor.size() != target_tensor.size() {
-            return Err(WeightCopyError::SizeMismatch);
+
+        // Copy position embedding
+        match &source.position_embedding {
+            LocalPositionalEncoding::Learned(s) => {
+                if let LocalPositionalEncoding::Learned(t) = &mut self.position_embedding {
+                    if s.size() != t.size() {
+                        return Err(WeightCopyError::SizeMismatch);
+                    }
+                    tch::no_grad(|| {
+                        t.copy_(s);
+                    });
+                } else {return Err(WeightCopyError::Other("Positional Encodings are of wrong type!".to_string()));}
+            },
+            LocalPositionalEncoding::Sinusoidal(s) => {
+                if let LocalPositionalEncoding::Sinusoidal(t) = &mut self.position_embedding {
+                    if s.size() != t.size() {
+                        return Err(WeightCopyError::SizeMismatch);
+                    }
+                    tch::no_grad(|| {
+                        t.copy_(s);
+                    });
+                } else {return Err(WeightCopyError::Other("Positional Encodings are of wrong type!".to_string()));}
+            },
+            LocalPositionalEncoding::Rotary{inv_freq, seq_len_cached, cos_cached, sin_cached} => {
+                if let LocalPositionalEncoding::Rotary{inv_freq: t_inv_freq, seq_len_cached: t_seq_len_cached, cos_cached: t_cos_cached, sin_cached: t_sin_cached} = &mut self.position_embedding {
+                    if t_inv_freq.size() != inv_freq.size() || t_cos_cached.size() != cos_cached.size() || t_sin_cached.size() != sin_cached.size() {
+                        return Err(WeightCopyError::SizeMismatch);
+                    }
+                    *t_seq_len_cached = *seq_len_cached;
+                    tch::no_grad(|| {
+                        t_inv_freq.copy_(inv_freq);
+                        t_cos_cached.copy_(cos_cached);
+                        t_sin_cached.copy_(sin_cached);
+                    });
+                }
+            }
         }
 
-        tch::no_grad(|| {
-            target_tensor.copy_(source_tensor);
-        });
         self.layernorm.copy(&source.layernorm)?;
         for i in 0..self.blocks.len() {
             self.blocks[i].copy(&source.blocks[i])?;
@@ -347,7 +387,7 @@ impl NNModule for TransformerAggregator {
         self.encoder.eval();
     }
 
-    fn forward(&self, x: &tch::Tensor) -> tch::Tensor {
+    fn forward(&mut self, x: &tch::Tensor) -> tch::Tensor {
         // xs shape: (batch size, seq len)
         let batch_size = x.size()[0];
         // Embed and append aggregation embedding to beginning
@@ -416,7 +456,7 @@ impl NNModule for LanguageModel {
         self.head.eval();
     }
 
-    fn forward(&self, x: &tch::Tensor) -> tch::Tensor {
+    fn forward(&mut self, x: &tch::Tensor) -> tch::Tensor {
         self.head.forward(
             &self.transformer.forward(x)
         )

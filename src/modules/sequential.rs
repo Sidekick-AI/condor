@@ -2,17 +2,9 @@ use tch::Tensor;
 use super::{NNModule};
 
 /// A sequential layer combining multiple other layers.
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct Sequential {
     pub layers: Vec<Box<dyn NNModule>>,
-}
-
-impl Default for Sequential {
-    fn default() -> Self {
-        Sequential {
-            layers: vec![]
-        }
-    }
 }
 
 impl Sequential {
@@ -52,14 +44,14 @@ impl Sequential {
     }
 
     /// Applies the forward pass and returns the output for each layer.
-    pub fn forward_all(&self, xs: &Tensor, n: Option<usize>) -> Vec<Tensor> {
+    pub fn forward_all(&mut self, xs: &Tensor, n: Option<usize>) -> Vec<Tensor> {
         if self.layers.is_empty() {
             vec![xs.shallow_clone()]
         } else {
             let n = n.unwrap_or_else(|| self.layers.len());
             let xs = self.layers[0].forward(xs);
             let mut vec = vec![];
-            let out = self.layers.iter().take(n).skip(1).fold(xs, |xs, layer| {
+            let out = self.layers.iter_mut().take(n).skip(1).fold(xs, |xs, layer| {
                 let out = layer.forward(&xs);
                 vec.push(xs);
                 out
@@ -83,13 +75,13 @@ impl NNModule for Sequential {
         }
     }
 
-    fn forward(&self, x: &tch::Tensor) -> tch::Tensor {
+    fn forward(&mut self, x: &tch::Tensor) -> tch::Tensor {
         if self.layers.is_empty() {
             x.shallow_clone()
         } else {
             let x = self.layers[0].forward(x);
             self.layers
-                .iter()
+                .iter_mut()
                 .skip(1)
                 .fold(x, |x, layer| layer.forward(&x))
         }

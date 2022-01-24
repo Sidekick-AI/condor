@@ -8,9 +8,10 @@
 ### TODO
 - [x] Implement linear layers
 - [x] Implement basic transformer layers
-- [ ] Implement sequential
+- [X] Implement sequential
 - [ ] Implement decoder and seq2seq transformer
 - [ ] Implement RNN layers
 - [x] Implement utilities
 - [ ] Implement more exotic architectures
 - [ ] Write more detailed tests (check tensor data)
+- [ ] Implement rotary positional embeddings

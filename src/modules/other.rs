@@ -16,7 +16,7 @@ impl NNModule for LayerNorm {
 
     fn eval(&mut self) {}
 
-    fn forward(&self, x: &tch::Tensor) -> tch::Tensor {
+    fn forward(&mut self, x: &tch::Tensor) -> tch::Tensor {
         Tensor::layer_norm(
             x,
             self.normalized_shape.as_slice(),
@@ -65,7 +65,7 @@ impl NNModule for Embedding {
 
     fn eval(&mut self) {}
 
-    fn forward(&self, x: &tch::Tensor) -> tch::Tensor {
+    fn forward(&mut self, x: &tch::Tensor) -> tch::Tensor {
         Tensor::embedding(
             &self.ws,
             x,
@@ -115,7 +115,7 @@ impl<'a> NNModule for Func<'a> {
         self.train = false;
     }
 
-    fn forward(&self, x: &tch::Tensor) -> tch::Tensor {
+    fn forward(&mut self, x: &tch::Tensor) -> tch::Tensor {
         (*self.f)(x, self.train)
     }
 }

@@ -8,7 +8,7 @@ mod linear_tests {
     #[test]
     fn test_linear() {
         let vs = nn::VarStore::new(Device::cuda_if_available());
-        let layer = Linear::new(&(&vs.root() / "linear"), 100, 20);
+        let mut layer = Linear::new(&(&vs.root() / "linear"), 100, 20);
         let input = Tensor::rand(&[64, 100], (Kind::Float, Device::cuda_if_available()));
         let output = layer.forward(&input);
         assert_eq!(output.size(), &[64, 20]);
@@ -32,7 +32,7 @@ mod transformer_test {
     #[test]
     fn test_transformer_encoder() {
         let vs = nn::VarStore::new(Device::cuda_if_available());
-        let transformer_encoder = TransformerEncoder::new(&(&vs.root() / "transformer"), 
+        let mut transformer_encoder = TransformerEncoder::new(&(&vs.root() / "transformer"), 
         100, 
         10, 
         3, 
@@ -50,7 +50,7 @@ mod transformer_test {
     #[test]
     fn test_transformer_aggregator() {
         let vs = nn::VarStore::new(Device::cuda_if_available());
-        let transformer_aggregator = TransformerAggregator::new(&(&vs.root() / "transformer"), 
+        let mut transformer_aggregator = TransformerAggregator::new(&(&vs.root() / "transformer"), 
         100, 
         10, 
         3, 
@@ -77,7 +77,7 @@ mod transformer_test {
         110,
         0.1, 
         true);
-        let transformer_aggregator = TransformerAggregator::from_encoder(&(&vs.root() / "transformer"), transformer_encoder, 150);
+        let mut transformer_aggregator = TransformerAggregator::from_encoder(&(&vs.root() / "transformer"), transformer_encoder, 150);
         let input = Tensor::randint(119, &[15, 50], (Kind::Int, Device::cuda_if_available()));
         let output = transformer_aggregator.forward(&input);
         assert_eq!(output.size(), &[15, 150]);
@@ -96,7 +96,7 @@ mod sequential_tests {
         let vs = nn::VarStore::new(Device::cuda_if_available());
         let linear_layer1 = Linear::new(&(&vs.root() / "linear"), 100, 20);
         let linear_layer2 = Linear::new(&(&vs.root() / "linear"), 20, 150);
-        let seq = sequential!(linear_layer1, PReLU::new(&vs.root() / "linear"), linear_layer2);
+        let mut seq = sequential!(linear_layer1, PReLU::new(&vs.root() / "linear"), linear_layer2);
         
         let input = Tensor::rand(&[64, 100], (Kind::Float, Device::cuda_if_available()));
         let output = seq.forward(&input);

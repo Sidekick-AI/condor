@@ -41,7 +41,7 @@ impl NNModule for Linear {
 
     fn eval(&mut self) {}
 
-    fn forward(&self, x: &tch::Tensor) -> tch::Tensor {
+    fn forward(&mut self, x: &tch::Tensor) -> tch::Tensor {
         x.matmul(&self.ws.tr()) + &self.bs
     }
 }

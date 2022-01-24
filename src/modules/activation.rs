@@ -10,7 +10,7 @@ impl NNModule for ReLU {
 
     fn eval(&mut self) {}
 
-    fn forward(&self, x: &tch::Tensor) -> tch::Tensor {
+    fn forward(&mut self, x: &tch::Tensor) -> tch::Tensor {
         x.relu()
     }
 }
@@ -28,7 +28,7 @@ impl NNModule for GeLU {
 
     fn eval(&mut self) {}
 
-    fn forward(&self, x: &tch::Tensor) -> tch::Tensor {
+    fn forward(&mut self, x: &tch::Tensor) -> tch::Tensor {
         x.gelu()
     }
 }
@@ -46,7 +46,7 @@ impl NNModule for Sigmoid {
 
     fn eval(&mut self) {}
 
-    fn forward(&self, x: &tch::Tensor) -> tch::Tensor {
+    fn forward(&mut self, x: &tch::Tensor) -> tch::Tensor {
         x.sigmoid()
     }
 }
@@ -74,7 +74,7 @@ impl NNModule for PReLU {
 
     fn eval(&mut self) {}
 
-    fn forward(&self, x: &tch::Tensor) -> tch::Tensor {
+    fn forward(&mut self, x: &tch::Tensor) -> tch::Tensor {
         x.prelu(&self.weight)
     }
 }
@@ -82,7 +82,7 @@ impl NNModule for PReLU {
 impl ModuleCopy for PReLU {
     fn copy(&mut self, source: &Self) -> Result<(), WeightCopyError> {
         if self.weight.size() != source.weight.size() {
-            return Err(WeightCopyError::SizeMismatch);
+            Err(WeightCopyError::SizeMismatch)
         } else {
             tch::no_grad(|| {
                 self.weight.copy_(&source.weight);
