@@ -1,6 +1,6 @@
 use tch::{Device, Kind, Tensor, nn};
 
-use crate::{modules::NNModule, utils::count_parameters};
+use crate::{modules::Module, utils::count_parameters};
 
 use super::super::{TransformerAggregator, TransformerAggregatorProps, TransformerEncoder, TransformerEncoderProps};
 
@@ -20,7 +20,7 @@ fn test_transformer_encoder() {
             causal_mask: true,
         });
     let input = Tensor::randint(119, &[15, 50], (Kind::Int, Device::cuda_if_available()));
-    let output = transformer_encoder.forward(&input);
+    let output = transformer_encoder.forward(input);
     assert_eq!(output.size(), &[15, 50, 100]);
     assert_eq!(count_parameters(&vs), 266500);
 }
@@ -40,7 +40,7 @@ fn test_transformer_aggregator() {
         dropout: 0.1,
     });
     let input = Tensor::randint(119, &[15, 50], (Kind::Int, Device::cuda_if_available()));
-    let output = transformer_aggregator.forward(&input);
+    let output = transformer_aggregator.forward(input);
     assert_eq!(output.size(), &[15, 150]);
     assert_eq!(count_parameters(&vs), 281750);
 }
@@ -61,7 +61,7 @@ fn test_transformer_aggregator_from_encoder() {
     });
     let mut transformer_aggregator = TransformerAggregator::from_encoder(&(&vs.root() / "transformer"), transformer_encoder, 150);
     let input = Tensor::randint(119, &[15, 50], (Kind::Int, Device::cuda_if_available()));
-    let output = transformer_aggregator.forward(&input);
+    let output = transformer_aggregator.forward(input);
     assert_eq!(output.size(), &[15, 150]);
     assert_eq!(count_parameters(&vs), 281750);
 }

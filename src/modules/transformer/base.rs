@@ -1,4 +1,4 @@
-use crate::modules::{LayerNorm, Linear, ModuleCopy, NNModule, WeightCopyError};
+use crate::modules::{LayerNorm, Linear, ModuleCopy, Module, WeightCopyError};
 use tch::{nn, Device, IndexOp, Kind, Tensor};
 
 /// Different types of positional encoding for Transformers
@@ -67,7 +67,9 @@ impl Clone for SelfAttention {
     }
 }
 
-impl NNModule for SelfAttention {
+impl Module for SelfAttention {
+    type Input = tch::Tensor;
+    type Output = tch::Tensor;
     fn train(&mut self) {
         self.train = true;
     }
@@ -76,15 +78,16 @@ impl NNModule for SelfAttention {
         self.train = false;
     }
 
-    fn forward(&mut self, x: &tch::Tensor) -> tch::Tensor {
-        let (sz_b, sz_t, sz_c) = x.size3().unwrap();
+    fn forward(&mut self, input: Self::Input) -> Self::Output {
+        let (sz_b, sz_t, sz_c) = input.size3().unwrap();
         let sizes = [sz_b, sz_t, self.n_head, sz_c / self.n_head];
-        let k = self.key.forward(x).view(sizes).transpose(1, 2);
-        let q = self.query.forward(x).view(sizes).transpose(1, 2);
-        let v = self.value.forward(x).view(sizes).transpose(1, 2);
+        let device = input.device();
+        let k = self.key.forward(input.shallow_clone()).view(sizes).transpose(1, 2);
+        let q = self.query.forward(input.shallow_clone()).view(sizes).transpose(1, 2);
+        let v = self.value.forward(input.shallow_clone()).view(sizes).transpose(1, 2);
         let mut att = q.matmul(&k.transpose(-2, -1)) * (1.0 / f64::sqrt(sizes[3] as f64));
         if self.causal_mask {
-            let mask = SelfAttention::generate_mask(sz_t, x.device());
+            let mask = SelfAttention::generate_mask(sz_t, device);
             att = att.masked_fill(
                 &mask.i((.., .., ..sz_t, ..sz_t)).eq(0.),
                 std::f64::NEG_INFINITY,
@@ -96,7 +99,7 @@ impl NNModule for SelfAttention {
             .transpose(1, 2)
             .contiguous()
             .view([sz_b, sz_t, sz_c]);
-        self.proj.forward(&ys).dropout(self.dropout, self.train)
+        self.proj.forward(ys).dropout(self.dropout, self.train)
     }
 }
 
@@ -137,7 +140,10 @@ impl TransformerBlock {
     }
 }
 
-impl NNModule for TransformerBlock {
+impl Module for TransformerBlock {
+    type Input = tch::Tensor;
+    type Output = tch::Tensor;
+
     fn train(&mut self) {
         self.attn.train();
         self.train = true;
@@ -148,11 +154,11 @@ impl NNModule for TransformerBlock {
         self.train = false;
     }
 
-    fn forward(&mut self, x: &tch::Tensor) -> tch::Tensor {
-        let x = x + self.attn.forward(&self.norm1.forward(x));
+    fn forward(&mut self, input: Self::Input) -> Self::Output {
+        let x = input.shallow_clone() + self.attn.forward(self.norm1.forward(input.shallow_clone()));
         let ys = self.linear2.forward(
-                &self.linear1.forward(
-                    &self.norm2.forward(&x)
+                self.linear1.forward(
+                    self.norm2.forward(x.shallow_clone())
                 ).gelu()
             ).dropout(self.dropout, self.train);
         x + ys

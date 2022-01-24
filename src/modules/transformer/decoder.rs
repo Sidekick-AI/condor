@@ -1,4 +1,4 @@
-use crate::modules::{Embedding, LayerNorm, Linear, ModuleCopy, NNModule, WeightCopyError, TransformerBlock, PositionalEncoding};
+use crate::modules::{Embedding, LayerNorm, Linear, ModuleCopy, Module, WeightCopyError, TransformerBlock, PositionalEncoding};
 use tch::{nn, IndexOp, Kind, Tensor};
 use super::LocalPositionalEncoding;
 

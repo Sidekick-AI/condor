@@ -1,9 +1,11 @@
-use tch::nn::Module;
 /// A trait for some basic functions a module should have
-pub trait NNModule: std::fmt::Debug + Send {
+pub trait Module: std::fmt::Debug + Send {
+    type Input;
+    type Output;
+
     fn train(&mut self);
     fn eval(&mut self);
-    fn forward<I, O>(&mut self, x: I) -> O;
+    fn forward(&mut self, input: Self::Input) -> Self::Output;
 }
 
 

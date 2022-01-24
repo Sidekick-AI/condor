@@ -1,6 +1,6 @@
 use std::ops::Div;
 
-use crate::other_crates::indicatif::{ProgressBar, ProgressStyle};
+use indicatif::{ProgressBar, ProgressStyle};
 use num::{Float, Zero};
 use rand::{Rng, thread_rng};
 use tch::{Kind, Tensor, nn::{Optimizer, VarStore}};
@@ -157,7 +157,7 @@ impl <T: Float> ExponentialAverage<T> {
     }
 
     pub fn with_beta(beta: f64) -> Self {
-        assert!(beta <= 1. && beta >= 0.);
+        assert!((0. ..=1.).contains(&beta));
         ExponentialAverage {
             beta,
             moment: 0.,

@@ -1,6 +1,6 @@
 use std::borrow::Borrow;
 use tch::{Tensor, nn::{self, EmbeddingConfig, LayerNormConfig}};
-use super::{ModuleCopy, NNModule, WeightCopyError};
+use super::{ModuleCopy, Module, WeightCopyError};
 
 /// A layer-normalization layer.
 #[derive(Debug)]
@@ -11,14 +11,17 @@ pub struct LayerNorm {
     pub normalized_shape: Vec<i64>,
 }
 
-impl NNModule for LayerNorm {
+impl Module for LayerNorm {
+    type Input = tch::Tensor;
+    type Output = tch::Tensor;
+
     fn train(&mut self) {}
 
     fn eval(&mut self) {}
 
-    fn forward(&mut self, x: &tch::Tensor) -> tch::Tensor {
+    fn forward(&mut self, input: Self::Input) -> Self::Output {
         Tensor::layer_norm(
-            x,
+            &input,
             self.normalized_shape.as_slice(),
             self.ws.as_ref(),
             self.bs.as_ref(),
@@ -60,15 +63,18 @@ pub struct Embedding {
     config: EmbeddingConfig,
 }
 
-impl NNModule for Embedding {
+impl Module for Embedding {
+    type Input = tch::Tensor;
+    type Output = tch::Tensor;
+
     fn train(&mut self) {}
 
     fn eval(&mut self) {}
 
-    fn forward(&mut self, x: &tch::Tensor) -> tch::Tensor {
+    fn forward(&mut self, input: Self::Input) -> Self::Output {
         Tensor::embedding(
             &self.ws,
-            x,
+            &input,
             self.config.padding_idx,
             self.config.scale_grad_by_freq,
             self.config.sparse,
@@ -106,7 +112,10 @@ where
     Func { f: Box::new(f), train: true }
 }
 
-impl<'a> NNModule for Func<'a> {
+impl<'a> Module for Func<'a> {
+    type Input = tch::Tensor;
+    type Output = tch::Tensor;
+
     fn train(&mut self) {
         self.train = true;
     }
@@ -115,8 +124,8 @@ impl<'a> NNModule for Func<'a> {
         self.train = false;
     }
 
-    fn forward(&mut self, x: &tch::Tensor) -> tch::Tensor {
-        (*self.f)(x, self.train)
+    fn forward(&mut self, input: Self::Input) -> Self::Output {
+        (*self.f)(&input, self.train)
     }
 }
 

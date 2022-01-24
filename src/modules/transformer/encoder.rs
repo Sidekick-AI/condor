@@ -1,4 +1,4 @@
-use crate::modules::{Embedding, LayerNorm, Linear, ModuleCopy, NNModule, WeightCopyError, TransformerBlock, PositionalEncoding};
+use crate::modules::{Embedding, LayerNorm, Linear, ModuleCopy, Module, WeightCopyError, TransformerBlock, PositionalEncoding};
 use tch::{nn, IndexOp, Kind, Tensor};
 use super::LocalPositionalEncoding;
 
@@ -83,18 +83,21 @@ impl TransformerEncoder {
         let mut x = (xs + pos_emb)
             .dropout(self.dropout, self.train);
         // Run through transformer blocks
-        x = self.blocks[0].forward(&x);
+        x = self.blocks[0].forward(x);
         x = self.blocks
             .iter_mut()
             .skip(1)
-            .fold(x, |x, layer| layer.forward(&x));
+            .fold(x, |x, layer| layer.forward(x));
         // Return first token
-        self.layernorm.forward(&x)
+        self.layernorm.forward(x)
         // output shape: (batch size, n_embd)
     }
 }
 
-impl NNModule for TransformerEncoder {
+impl Module for TransformerEncoder {
+    type Input = tch::Tensor;
+    type Output = tch::Tensor;
+
     fn train(&mut self) {
         for block in &mut self.blocks {
             block.train();
@@ -109,11 +112,11 @@ impl NNModule for TransformerEncoder {
         self.train = false;
     }
 
-    fn forward(&mut self, x: &tch::Tensor) -> tch::Tensor {
+    fn forward(&mut self, input: Self::Input) -> Self::Output {
         // x shape: (batch size, seq len)
-        let (batch_size, sz_t) = x.size2().unwrap();
+        let (batch_size, sz_t) = input.size2().unwrap();
         // Run through embeddings
-        let tok_emb = self.token_embedding.forward(x);
+        let tok_emb = self.token_embedding.forward(input);
         let pos_emb = match &mut self.position_embedding {
             LocalPositionalEncoding::Learned(l) => l.i((.., ..sz_t, ..)).repeat(&[batch_size, 1, 1]),
             LocalPositionalEncoding::Sinusoidal(pe) => {
@@ -126,13 +129,13 @@ impl NNModule for TransformerEncoder {
         let x = (tok_emb + pos_emb)
             .dropout(self.dropout, self.train);
         // Run through transformer blocks
-        let x = self.blocks[0].forward(&x);
+        let x = self.blocks[0].forward(x);
         let x = self.blocks
             .iter_mut()
             .skip(1)
-            .fold(x, |x, layer| layer.forward(&x));
+            .fold(x, |x, layer| layer.forward(x));
         // Return first token
-        self.layernorm.forward(&x)
+        self.layernorm.forward(x)
         // output shape: (batch size, n_embd)
     }
 }
@@ -237,7 +240,10 @@ impl TransformerAggregator {
     }
 }
 
-impl NNModule for TransformerAggregator {
+impl Module for TransformerAggregator {
+    type Input = tch::Tensor;
+    type Output = tch::Tensor;
+
     fn train(&mut self) {
         self.encoder.train();
     }
@@ -246,7 +252,7 @@ impl NNModule for TransformerAggregator {
         self.encoder.eval();
     }
 
-    fn forward(&mut self, x: &tch::Tensor) -> tch::Tensor {
+    fn forward(&mut self, x: Self::Input) -> Self::Output {
         // xs shape: (batch size, seq len)
         let batch_size = x.size()[0];
         // Embed and append aggregation embedding to beginning
@@ -257,7 +263,7 @@ impl NNModule for TransformerAggregator {
         // Run through encoder
         xs = self.encoder.forward_no_embed(&xs);
         // Return first token
-        self.head.forward(&xs.i((.., 0, ..)).squeeze_dim(1))
+        self.head.forward(xs.i((.., 0, ..)).squeeze_dim(1))
         // output shape: (batch size, n_embd)
     }
 }

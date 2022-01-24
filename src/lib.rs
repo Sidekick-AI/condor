@@ -4,4 +4,5 @@ pub mod modules;
 /// Common utilities for machine learning
 pub mod utils;
 
-mod other_crates;
+// Reexport tch::Tensor
+pub use tch::Tensor;

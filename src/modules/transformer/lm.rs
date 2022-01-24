@@ -1,4 +1,4 @@
-use crate::modules::{Linear, ModuleCopy, NNModule, WeightCopyError, TransformerEncoder, TransformerEncoderProps, PositionalEncoding};
+use crate::modules::{Linear, ModuleCopy, Module, WeightCopyError, TransformerEncoder, TransformerEncoderProps, PositionalEncoding};
 use tch::nn;
 
 /// A simple language model, using a causally masked transformer encoder and a head
@@ -48,7 +48,10 @@ impl LanguageModel {
     }
 }
 
-impl NNModule for LanguageModel {
+impl Module for LanguageModel {
+    type Input = tch::Tensor;
+    type Output = tch::Tensor;
+
     fn train(&mut self) {
         self.transformer.train();
         self.head.train();
@@ -59,9 +62,9 @@ impl NNModule for LanguageModel {
         self.head.eval();
     }
 
-    fn forward(&mut self, x: &tch::Tensor) -> tch::Tensor {
+    fn forward(&mut self, input: Self::Input) -> Self::Output {
         self.head.forward(
-            &self.transformer.forward(x)
+            self.transformer.forward(input)
         )
     }
 }

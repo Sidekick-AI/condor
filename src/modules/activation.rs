@@ -1,17 +1,20 @@
-use super::{ModuleCopy, NNModule, WeightCopyError};
+use super::{ModuleCopy, Module, WeightCopyError};
 use tch::{Tensor, nn};
 
 /// The Rectified Linear Units activation function
 #[derive(Debug)]
 pub struct ReLU;
 
-impl NNModule for ReLU {
+impl Module for ReLU {
+    type Input = tch::Tensor;
+    type Output = tch::Tensor;
+
     fn train(&mut self) {}
 
     fn eval(&mut self) {}
 
-    fn forward(&mut self, x: &tch::Tensor) -> tch::Tensor {
-        x.relu()
+    fn forward(&mut self, input: Self::Input) -> Self::Output {
+        input.relu()
     }
 }
 
@@ -23,13 +26,16 @@ impl ModuleCopy for ReLU {
 #[derive(Debug)]
 pub struct GeLU;
 
-impl NNModule for GeLU {
+impl Module for GeLU {
+    type Input = tch::Tensor;
+    type Output = tch::Tensor;
+
     fn train(&mut self) {}
 
     fn eval(&mut self) {}
 
-    fn forward(&mut self, x: &tch::Tensor) -> tch::Tensor {
-        x.gelu()
+    fn forward(&mut self, input: Self::Input) -> Self::Output {
+        input.gelu()
     }
 }
 
@@ -41,13 +47,16 @@ impl ModuleCopy for GeLU {
 #[derive(Debug)]
 pub struct Sigmoid;
 
-impl NNModule for Sigmoid {
+impl Module for Sigmoid {
+    type Input = tch::Tensor;
+    type Output = tch::Tensor;
+
     fn train(&mut self) {}
 
     fn eval(&mut self) {}
 
-    fn forward(&mut self, x: &tch::Tensor) -> tch::Tensor {
-        x.sigmoid()
+    fn forward(&mut self, input: Self::Input) -> Self::Output {
+        input.sigmoid()
     }
 }
 
@@ -69,13 +78,16 @@ impl PReLU {
     }
 }
 
-impl NNModule for PReLU {
+impl Module for PReLU {
+    type Input = tch::Tensor;
+    type Output = tch::Tensor;
+
     fn train(&mut self) {}
 
     fn eval(&mut self) {}
 
-    fn forward(&mut self, x: &tch::Tensor) -> tch::Tensor {
-        x.prelu(&self.weight)
+    fn forward(&mut self, input: Self::Input) -> Self::Output {
+        input.prelu(&self.weight)
     }
 }
 

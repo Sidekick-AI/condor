@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod linear_tests {
     use tch::{Device, Kind, Tensor, nn};
-    use crate::{modules::NNModule, utils::count_parameters};
+    use crate::{modules::Module, utils::count_parameters};
 
     use super::super::Linear;
 
@@ -10,7 +10,7 @@ mod linear_tests {
         let vs = nn::VarStore::new(Device::cuda_if_available());
         let mut layer = Linear::new(&(&vs.root() / "linear"), 100, 20);
         let input = Tensor::rand(&[64, 100], (Kind::Float, Device::cuda_if_available()));
-        let output = layer.forward(&input);
+        let output = layer.forward(input);
         assert_eq!(output.size(), &[64, 20]);
         assert_eq!(count_parameters(&vs), 2020);
     }
@@ -24,8 +24,8 @@ mod rnn_test {
 #[cfg(test)]
 mod sequential_tests {
     use tch::{Device, Kind, Tensor, nn};
-    use crate::{modules::NNModule, sequential, utils::count_parameters};
-    use super::super::{Linear, Sequential, PReLU};
+    use crate::{modules::Module, sequential, utils::count_parameters};
+    use super::super::{Linear, PReLU};
 
     #[test]
     fn test_sequential() {
@@ -35,7 +35,7 @@ mod sequential_tests {
         let mut seq = sequential!(linear_layer1, PReLU::new(&vs.root() / "linear"), linear_layer2);
         
         let input = Tensor::rand(&[64, 100], (Kind::Float, Device::cuda_if_available()));
-        let output = seq.forward(&input);
+        let output = seq.forward(input);
         assert_eq!(output.size(), &[64, 150]);
         assert_eq!(count_parameters(&vs), 5171);
     }

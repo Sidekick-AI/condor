@@ -1,4 +1,4 @@
-use super::{ModuleCopy, NNModule, WeightCopyError};
+use super::{ModuleCopy, Module, WeightCopyError};
 use tch::{Tensor, nn};
 
 #[derive(Debug)]
@@ -36,13 +36,16 @@ impl Linear {
     }
 }
 
-impl NNModule for Linear {
+impl Module for Linear {
+    type Input = tch::Tensor;
+    type Output = tch::Tensor;
+
     fn train(&mut self) {}
 
     fn eval(&mut self) {}
 
-    fn forward(&mut self, x: &tch::Tensor) -> tch::Tensor {
-        x.matmul(&self.ws.tr()) + &self.bs
+    fn forward(&mut self, input: Self::Input) -> Self::Output {
+        input.matmul(&self.ws.tr()) + &self.bs
     }
 }
 
