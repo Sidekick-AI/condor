@@ -1,19 +1,19 @@
 use std::ops::Div;
 
-use indicatif::{ProgressBar, ProgressStyle};
+use crate::other_crates::indicatif::{ProgressBar, ProgressStyle};
 use num::{Float, Zero};
 use rand::{Rng, thread_rng};
 use tch::{Kind, Tensor, nn::{Optimizer, VarStore}};
 
 
-pub struct DecayingOptimizer<T> {
-    optimizer: Optimizer<T>,
+pub struct DecayingOptimizer {
+    optimizer: Optimizer,
     lr: f64,
     decay: f64
 }
 
-impl<T> DecayingOptimizer<T> {
-    pub fn new(optimizer: Optimizer<T>, initial_lr: f64, decay: f64) -> Self {
+impl DecayingOptimizer {
+    pub fn new(optimizer: Optimizer, initial_lr: f64, decay: f64) -> Self {
         DecayingOptimizer {
             optimizer,
             lr: initial_lr,
@@ -33,16 +33,16 @@ impl<T> DecayingOptimizer<T> {
     }
 }
 
-impl<T> core::ops::Deref for DecayingOptimizer<T> {
-    type Target = Optimizer<T>;
+impl core::ops::Deref for DecayingOptimizer {
+    type Target = Optimizer;
 
     fn deref(&self) -> &Self::Target {
         &self.optimizer
     }
 }
 
-impl<T> core::ops::DerefMut for DecayingOptimizer<T> {
-    fn deref_mut(&mut self) -> &mut Optimizer<T> {
+impl core::ops::DerefMut for DecayingOptimizer {
+    fn deref_mut(&mut self) -> &mut Optimizer {
         &mut self.optimizer
     }
 }
@@ -69,7 +69,8 @@ pub fn train_progress_bar(steps: u64) -> ProgressBar {
             let secs = state.eta().as_secs();
             let mut string = format!("{:.1}s", state.eta().as_secs_f64() % 60.);
             if (secs / 60) % 60 > 0 {string = format!("{}m {}", (secs / 60) % 60, string);}
-            if secs / 3600 > 0 {string = format!("{}h {}", secs / 3600, string);}
+            if (secs / 3600) % 24 > 0 {string = format!("{}h {}", (secs / 3600) % 24, string);}
+            if secs / 86400 > 0 {string = format!("{}d {}", secs / 86400, string);}
             string
         })
         .with_key("rate", |state| {
@@ -95,7 +96,8 @@ pub fn test_progress_bar(steps: u64) -> ProgressBar {
             let secs = state.eta().as_secs();
             let mut string = format!("{:.1}s", state.eta().as_secs_f64() % 60.);
             if (secs / 60) % 60 > 0 {string = format!("{}m {}", (secs / 60) % 60, string);}
-            if secs / 3600 > 0 {string = format!("{}h {}", secs / 3600, string);}
+            if (secs / 3600) % 24 > 0 {string = format!("{}h {}", (secs / 3600) % 24, string);}
+            if secs / 86400 > 0 {string = format!("{}d {}", secs / 86400, string);}
             string
         })
         .with_key("rate", |state| {

@@ -155,7 +155,7 @@ impl Module for TransformerBlock {
     }
 
     fn forward(&mut self, input: Self::Input) -> Self::Output {
-        let x = input.shallow_clone() + self.attn.forward(self.norm1.forward(input.shallow_clone()));
+        let x = input.shallow_clone() + self.norm1.forward(self.attn.forward(input));
         let ys = self.linear2.forward(
                 self.linear1.forward(
                     self.norm2.forward(x.shallow_clone())

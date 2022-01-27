@@ -6,3 +6,5 @@ pub mod utils;
 
 // Reexport tch::Tensor
 pub use tch::Tensor;
+
+mod other_crates;
