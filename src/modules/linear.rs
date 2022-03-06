@@ -1,44 +1,48 @@
-use super::{ModuleCopy, Module, WeightCopyError};
-use tch::{Tensor, nn};
+use super::{ModuleCopy, Module};
+use crate::{Tensor, DimType};
 
 #[derive(Debug)]
-pub struct Linear {
-    pub ws: Tensor,
-    pub bs: Tensor,
+pub struct Linear<const IN: DimType, const OUT: DimType> {
+    pub ws: Tensor<IN, OUT>,
+    pub bs: Tensor<OUT>,
 }
 
-impl Clone for Linear {
+const fn static_dim(n: usize) -> DimType {
+    DimType::Static(n)
+}
+
+impl <const IN: DimType, const OUT: DimType>Clone for Linear<IN, OUT> {
     fn clone(&self) -> Self {
         Linear {
-            ws: self.ws.copy(),
-            bs: self.bs.copy()
+            ws: self.ws.clone(),
+            bs: self.bs.clone()
         }
     }
 }
 
-impl Linear {
-    pub fn new(vs: &nn::Path, in_dim: i64, out_dim: i64) -> Self {
+impl <const IN: DimType, const OUT: DimType>Linear<IN, OUT> {
+    pub fn new(vs: &tch::nn::Path, in_dim: i64, out_dim: i64) -> Self {
         let wd = vs.set_group(1);
         let no_wd = vs.set_group(0);
         Linear {
-            ws: wd.randn("weight", &[out_dim, in_dim], 0.0, 0.02),
-            bs: no_wd.randn("bias", &[out_dim], 0.0, 0.2),
+            ws: Tensor::from_tch(wd.randn("weight", &[out_dim, in_dim], 0.0, 0.02)),
+            bs: Tensor::from_tch(no_wd.randn("bias", &[out_dim], 0.0, 0.2)),
         }
     }
 
-    pub fn no_bias(vs: nn::Path, in_dim: i64, out_dim: i64) -> Self {
+    pub fn no_bias(vs: tch::nn::Path, in_dim: i64, out_dim: i64) -> Self {
         let wd = vs.set_group(1);
         let no_wd = vs.set_group(0);
         Linear {
-            ws: wd.randn("weight", &[out_dim, in_dim], 0.0, 0.02),
-            bs: no_wd.zeros_no_train("bias", &[out_dim]),
+            ws: Tensor::from_tch(wd.randn("weight", &[out_dim, in_dim], 0.0, 0.02)),
+            bs: Tensor::from_tch(no_wd.zeros_no_train("bias", &[out_dim])),
         }
     }
 }
 
-impl Module for Linear {
-    type Input = tch::Tensor;
-    type Output = tch::Tensor;
+impl <const IN: DimType, const OUT: DimType>Module for Linear<IN, OUT> {
+    type Input = Tensor<{DimType::Dynamic}, IN>;
+    type Output = Tensor<{DimType::Dynamic}, OUT>;
 
     fn train(&mut self) {}
 
@@ -49,16 +53,11 @@ impl Module for Linear {
     }
 }
 
-impl ModuleCopy for Linear {
-    fn copy(&mut self, source: &Self) -> Result<(), WeightCopyError> {
-        if self.ws.size() != source.ws.size() || self.bs.size() != source.bs.size() {
-            Err(WeightCopyError::SizeMismatch)
-        } else {
-            tch::no_grad(|| {
-                self.ws.copy_(&source.ws);
-                self.bs.copy_(&source.bs);
-            });
-            Ok(())
-        }
+impl <const IN: usize, const OUT: usize>ModuleCopy for Linear<IN, OUT> {
+    fn copy(&mut self, source: &Self) {
+        tch::no_grad(|| {
+            self.ws.copy_(&source.ws);
+            self.bs.copy_(&source.bs);
+        });
     }
 }

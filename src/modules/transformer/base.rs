@@ -19,19 +19,19 @@ pub(super) enum LocalPositionalEncoding {
 
 /// The most basic dot-product self attention with an optional causal mask
 #[derive(Debug)]
-pub(crate) struct SelfAttention {
+pub(crate) struct SelfAttention<const EMBED: usize> {
     n_head: i64,
     n_embd: i64,
     dropout: f64,
-    key: Linear,
-    query: Linear,
-    value: Linear,
-    proj: Linear,
+    key: Linear<EMBED, EMBED>,
+    query: Linear<EMBED, EMBED>,
+    value: Linear<EMBED, EMBED>,
+    proj: Linear<EMBED, EMBED>,
     train: bool,
     causal_mask: bool
 }
 
-impl SelfAttention {
+impl <const EMBED: usize>SelfAttention<EMBED> {
     pub fn new(p: &nn::Path, n_embd: i64, n_head: i64, dropout: f64, causal_mask: bool) -> Self {
         SelfAttention {
             n_embd,
@@ -51,7 +51,7 @@ impl SelfAttention {
     }
 }
 
-impl Clone for SelfAttention {
+impl <const EMBED: usize>Clone for SelfAttention<EMBED> {
     fn clone(&self) -> Self {
         SelfAttention {
             n_head: self.n_head,
@@ -67,7 +67,7 @@ impl Clone for SelfAttention {
     }
 }
 
-impl Module for SelfAttention {
+impl <const EMBED: usize>Module for SelfAttention<EMBED> {
     type Input = tch::Tensor;
     type Output = tch::Tensor;
     fn train(&mut self) {
@@ -103,7 +103,7 @@ impl Module for SelfAttention {
     }
 }
 
-impl ModuleCopy for SelfAttention {
+impl <const EMBED: usize>ModuleCopy for SelfAttention<EMBED> {
     fn copy(&mut self, source: &Self) -> Result<(), WeightCopyError> {
         self.key.copy(&source.key)?;
         self.query.copy(&source.query)?;
@@ -115,17 +115,17 @@ impl ModuleCopy for SelfAttention {
 
 /// A basic transformer encoder block
 #[derive(Debug)]
-pub struct TransformerBlock {
+pub struct TransformerBlock<const EMBED: usize, const INNER: usize> {
     norm1: LayerNorm,
     norm2: LayerNorm,
-    attn: SelfAttention,
-    linear1: Linear,
-    linear2: Linear,
+    attn: SelfAttention<EMBED>,
+    linear1: Linear<EMBED, INNER>,
+    linear2: Linear<INNER, EMBED>,
     dropout: f64,
     train: bool,
 }
 
-impl TransformerBlock {
+impl <const EMBED: usize, const INNER: usize>TransformerBlock<EMBED, INNER> {
     pub fn new(p: &nn::Path, n_embd: i64, n_head: i64, dropout: f64, causal_mask: bool) -> Self {
         assert!(n_embd % n_head == 0, "Embedding size ({}) must be divisible by number of heads ({})!", n_embd, n_head);
         TransformerBlock {
@@ -140,7 +140,7 @@ impl TransformerBlock {
     }
 }
 
-impl Module for TransformerBlock {
+impl <const EMBED: usize, const INNER: usize>Module for TransformerBlock<EMBED, INNER> {
     type Input = tch::Tensor;
     type Output = tch::Tensor;
 
@@ -165,7 +165,7 @@ impl Module for TransformerBlock {
     }
 }
 
-impl ModuleCopy for TransformerBlock {
+impl <const EMBED: usize, const INNER: usize>ModuleCopy for TransformerBlock<EMBED, INNER> {
     fn copy(&mut self, source: &Self) -> Result<(), WeightCopyError> {
         self.attn.copy(&source.attn)?;
         self.norm1.copy(&source.norm1)?;

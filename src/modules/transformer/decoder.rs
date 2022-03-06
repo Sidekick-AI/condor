@@ -283,7 +283,7 @@ impl Module for TransformerDecoder {
             .fold(x, |x, layer| layer.forward((x, encoder_output.shallow_clone())));
         // Return first token
         self.layernorm.forward(x)
-        // output shape: (batch size, n_embd)
+        // output shape: (batch size, seq_len, n_embd)
     }
 }
 
