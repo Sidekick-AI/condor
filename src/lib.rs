@@ -8,8 +8,8 @@ pub mod modules;
 pub mod utils;
 
 /// Condor tensor
-pub mod tensor;
-pub use tensor::{Tensor, DimType};
+mod tensor;
+pub use tensor::Tensor;
 
 mod other_crates;
 

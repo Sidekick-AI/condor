@@ -1,17 +1,15 @@
+use std::process::Output;
+
 use super::{ModuleCopy, Module};
-use crate::{Tensor, DimType};
+use crate::Tensor;
 
 #[derive(Debug)]
-pub struct Linear<const IN: DimType, const OUT: DimType> {
+pub struct Linear<const IN: u16, const OUT: u16> {
     pub ws: Tensor<IN, OUT>,
     pub bs: Tensor<OUT>,
 }
 
-const fn static_dim(n: usize) -> DimType {
-    DimType::Static(n)
-}
-
-impl <const IN: DimType, const OUT: DimType>Clone for Linear<IN, OUT> {
+impl <const IN: u16, const OUT: u16>Clone for Linear<IN, OUT> {
     fn clone(&self) -> Self {
         Linear {
             ws: self.ws.clone(),
@@ -20,7 +18,7 @@ impl <const IN: DimType, const OUT: DimType>Clone for Linear<IN, OUT> {
     }
 }
 
-impl <const IN: DimType, const OUT: DimType>Linear<IN, OUT> {
+impl <const IN: u16, const OUT: u16>Linear<IN, OUT> {
     pub fn new(vs: &tch::nn::Path, in_dim: i64, out_dim: i64) -> Self {
         let wd = vs.set_group(1);
         let no_wd = vs.set_group(0);
@@ -40,9 +38,9 @@ impl <const IN: DimType, const OUT: DimType>Linear<IN, OUT> {
     }
 }
 
-impl <const IN: DimType, const OUT: DimType>Module for Linear<IN, OUT> {
-    type Input = Tensor<{DimType::Dynamic}, IN>;
-    type Output = Tensor<{DimType::Dynamic}, OUT>;
+impl <const BATCH: u16, const IN: u16, const OUT: u16>Module for Linear<IN, OUT> {
+    type Input = Tensor<BATCH, IN>;
+    type Output = Tensor<BATCH, OUT>;
 
     fn train(&mut self) {}
 
@@ -53,7 +51,7 @@ impl <const IN: DimType, const OUT: DimType>Module for Linear<IN, OUT> {
     }
 }
 
-impl <const IN: usize, const OUT: usize>ModuleCopy for Linear<IN, OUT> {
+impl <const IN: u16, const OUT: u16>ModuleCopy for Linear<IN, OUT> {
     fn copy(&mut self, source: &Self) {
         tch::no_grad(|| {
             self.ws.copy_(&source.ws);
