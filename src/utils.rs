@@ -5,6 +5,20 @@ use num::{Float, Zero};
 use rand::{Rng, thread_rng};
 use tch::{Kind, Tensor, nn::{Optimizer, VarStore}};
 
+pub struct Lerp {
+    pub factor: f64,
+    pub value: f64,
+}
+
+impl Lerp {
+    pub fn new(initial: f64, factor: f64) -> Self {
+        Lerp { factor, value: initial }
+    }
+
+    pub fn step(&mut self) {
+        self.value *= self.factor;
+    }
+}
 
 pub struct DecayingOptimizer {
     optimizer: Optimizer,
