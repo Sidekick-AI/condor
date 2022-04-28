@@ -1,105 +1,343 @@
-use super::{ModuleCopy, Module, WeightCopyError};
-use tch::{Tensor, nn};
+use crate::{Tensor1, Tensor2, Tensor3, Module};
 
-/// The Rectified Linear Units activation function
-#[derive(Debug)]
-pub struct ReLU;
+// Tensor impls
+// impl <const D1: u16, const D2: u16, const D3: u16, const D4: u16, const D5: u16>Tensor5<D1, D2, D3, D4, D5> {
+//     pub fn relu(&self) -> Self {
+//         todo!()
+//     }
 
-impl Module for ReLU {
-    type Input = tch::Tensor;
-    type Output = tch::Tensor;
+//     pub fn gelu(&self) -> Self {
+//         todo!()
+//     }
 
-    fn train(&mut self) {}
+//     pub fn sigmoid(&self) -> Self {
+//         todo!()
+//     }
 
-    fn eval(&mut self) {}
+//     pub fn prelu(&self, weight: &Tensor1<1>) -> Self {
+//         todo!()
+//     }
+// }
 
-    fn forward(&mut self, input: Self::Input) -> Self::Output {
+// impl <const D1: u16, const D2: u16, const D3: u16, const D4: u16>Tensor4<D1, D2, D3, D4> {
+//     pub fn relu(&self) -> Self {
+//         todo!()
+//     }
+
+//     pub fn gelu(&self) -> Self {
+//         todo!()
+//     }
+
+//     pub fn sigmoid(&self) -> Self {
+//         todo!()
+//     }
+
+//     pub fn prelu(&self, weight: &Tensor1<1>) -> Self {
+//         todo!()
+//     }
+// }
+
+impl <const D1: u16, const D2: u16, const D3: u16>Tensor3<D1, D2, D3> {
+    pub fn relu(&self) -> Self {
+        todo!()
+    }
+
+    pub fn gelu(&self) -> Self {
+        todo!()
+    }
+
+    pub fn sigmoid(&self) -> Self {
+        todo!()
+    }
+
+    pub fn prelu(&self, weight: &Tensor1<1>) -> Self {
+        todo!()
+    }
+}
+
+impl <const D1: u16, const D2: u16>Tensor2<D1, D2> {
+    pub fn relu(&self) -> Self {
+        todo!()
+    }
+
+    pub fn gelu(&self) -> Self {
+        todo!()
+    }
+
+    pub fn sigmoid(&self) -> Self {
+        todo!()
+    }
+
+    pub fn prelu(&self, weight: &Tensor1<1>) -> Self {
+        todo!()
+    }
+}
+
+impl <const D1: u16>Tensor1<D1> {
+    pub fn relu(&self) -> Self {
+        todo!()
+    }
+
+    pub fn gelu(&self) -> Self {
+        todo!()
+    }
+
+    pub fn sigmoid(&self) -> Self {
+        todo!()
+    }
+
+    pub fn prelu(&self, weight: &Tensor1<1>) -> Self {
+        todo!()
+    }
+}
+
+// Activation Modules
+#[derive(Default)]
+pub struct ReLU1<const D1: u16> {}
+
+impl <const D1: u16>Module for ReLU1<D1> {
+    type Input = Tensor1<D1>;
+    type Output = Tensor1<D1>;
+
+    fn forward(&self, input: Self::Input) -> Self::Output {
         input.relu()
     }
 }
 
-impl ModuleCopy for ReLU {
-    fn copy(&mut self, _: &Self) -> Result<(), WeightCopyError> {Ok(())}
+#[derive(Default)]
+pub struct ReLU2<const D1: u16, const D2: u16> {}
+
+impl <const D1: u16, const D2: u16>Module for ReLU2<D1, D2> {
+    type Input = Tensor2<D1, D2>;
+    type Output = Tensor2<D1, D2>;
+
+    fn forward(&self, input: Self::Input) -> Self::Output {
+        input.relu()
+    }
 }
 
-/// The Gausian Linear Units activation function
-#[derive(Debug)]
-pub struct GeLU;
+#[derive(Default)]
+pub struct ReLU3<const D1: u16, const D2: u16, const D3: u16> {}
 
-impl Module for GeLU {
-    type Input = tch::Tensor;
-    type Output = tch::Tensor;
+impl <const D1: u16, const D2: u16, const D3: u16>Module for ReLU3<D1, D2, D3> {
+    type Input = Tensor3<D1, D2, D3>;
+    type Output = Tensor3<D1, D2, D3>;
 
-    fn train(&mut self) {}
+    fn forward(&self, input: Self::Input) -> Self::Output {
+        input.relu()
+    }
+}
 
-    fn eval(&mut self) {}
+// #[derive(Default)]
+// pub struct ReLU4<const D1: u16, const D2: u16, const D3: u16, const D4: u16> {}
 
-    fn forward(&mut self, input: Self::Input) -> Self::Output {
+// impl <const D1: u16, const D2: u16, const D3: u16, const D4: u16>Module for ReLU4<D1, D2, D3, D4> {
+//     type Input = Tensor4<D1, D2, D3, D4>;
+//     type Output = Tensor4<D1, D2, D3, D4>;
+
+//     fn forward(&self, input: Self::Input) -> Self::Output {
+//         input.relu()
+//     }
+// }
+
+// #[derive(Default)]
+// pub struct ReLU5<const D1: u16, const D2: u16, const D3: u16, const D4: u16, const D5: u16> {}
+
+// impl <const D1: u16, const D2: u16, const D3: u16, const D4: u16, const D5: u16>Module for ReLU5<D1, D2, D3, D4, D5> {
+//     type Input = Tensor5<D1, D2, D3, D4, D5>;
+//     type Output = Tensor5<D1, D2, D3, D4, D5>;
+
+//     fn forward(&self, input: Self::Input) -> Self::Output {
+//         input.relu()
+//     }
+// }
+
+#[derive(Default)]
+pub struct GeLU1<const D1: u16> {}
+
+impl <const D1: u16>Module for GeLU1<D1> {
+    type Input = Tensor1<D1>;
+    type Output = Tensor1<D1>;
+
+    fn forward(&self, input: Self::Input) -> Self::Output {
         input.gelu()
     }
 }
 
-impl ModuleCopy for GeLU {
-    fn copy(&mut self, _: &Self) -> Result<(), WeightCopyError> {Ok(())}
+#[derive(Default)]
+pub struct GeLU2<const D1: u16, const D2: u16> {}
+
+impl <const D1: u16, const D2: u16>Module for GeLU2<D1, D2> {
+    type Input = Tensor2<D1, D2>;
+    type Output = Tensor2<D1, D2>;
+
+    fn forward(&self, input: Self::Input) -> Self::Output {
+        input.gelu()
+    }
 }
 
-/// The sigmoid activation function
-#[derive(Debug)]
-pub struct Sigmoid;
+#[derive(Default)]
+pub struct GeLU3<const D1: u16, const D2: u16, const D3: u16> {}
 
-impl Module for Sigmoid {
-    type Input = tch::Tensor;
-    type Output = tch::Tensor;
+impl <const D1: u16, const D2: u16, const D3: u16>Module for GeLU3<D1, D2, D3> {
+    type Input = Tensor3<D1, D2, D3>;
+    type Output = Tensor3<D1, D2, D3>;
 
-    fn train(&mut self) {}
+    fn forward(&self, input: Self::Input) -> Self::Output {
+        input.gelu()
+    }
+}
 
-    fn eval(&mut self) {}
+// #[derive(Default)]
+// pub struct GeLU4<const D1: u16, const D2: u16, const D3: u16, const D4: u16> {}
 
-    fn forward(&mut self, input: Self::Input) -> Self::Output {
+// impl <const D1: u16, const D2: u16, const D3: u16, const D4: u16>Module for GeLU4<D1, D2, D3, D4> {
+//     type Input = Tensor4<D1, D2, D3, D4>;
+//     type Output = Tensor4<D1, D2, D3, D4>;
+
+//     fn forward(&self, input: Self::Input) -> Self::Output {
+//         input.gelu()
+//     }
+// }
+
+// #[derive(Default)]
+// pub struct GeLU5<const D1: u16, const D2: u16, const D3: u16, const D4: u16, const D5: u16> {}
+
+// impl <const D1: u16, const D2: u16, const D3: u16, const D4: u16, const D5: u16>Module for GeLU5<D1, D2, D3, D4, D5> {
+//     type Input = Tensor5<D1, D2, D3, D4, D5>;
+//     type Output = Tensor5<D1, D2, D3, D4, D5>;
+
+//     fn forward(&self, input: Self::Input) -> Self::Output {
+//         input.gelu()
+//     }
+// }
+
+#[derive(Default)]
+pub struct Sigmoid1<const D1: u16> {}
+
+impl <const D1: u16>Module for Sigmoid1<D1> {
+    type Input = Tensor1<D1>;
+    type Output = Tensor1<D1>;
+
+    fn forward(&self, input: Self::Input) -> Self::Output {
         input.sigmoid()
     }
 }
 
-impl ModuleCopy for Sigmoid {
-    fn copy(&mut self, _: &Self) -> Result<(), WeightCopyError> {Ok(())}
-}
+#[derive(Default)]
+pub struct Sigmoid2<const D1: u16, const D2: u16> {}
 
-/// The Parameterized linear units activation function
-#[derive(Debug)]
-pub struct PReLU {
-    weight: Tensor,
-}
+impl <const D1: u16, const D2: u16>Module for Sigmoid2<D1, D2> {
+    type Input = Tensor2<D1, D2>;
+    type Output = Tensor2<D1, D2>;
 
-impl PReLU {
-    pub fn new(vs: nn::Path) -> Self {
-        PReLU {
-            weight: vs.set_group(1).randn("weight", &[1], 0.0, 0.02)
-        }
+    fn forward(&self, input: Self::Input) -> Self::Output {
+        input.sigmoid()
     }
 }
 
-impl Module for PReLU {
-    type Input = tch::Tensor;
-    type Output = tch::Tensor;
+#[derive(Default)]
+pub struct Sigmoid3<const D1: u16, const D2: u16, const D3: u16> {}
 
-    fn train(&mut self) {}
+impl <const D1: u16, const D2: u16, const D3: u16>Module for Sigmoid3<D1, D2, D3> {
+    type Input = Tensor3<D1, D2, D3>;
+    type Output = Tensor3<D1, D2, D3>;
 
-    fn eval(&mut self) {}
+    fn forward(&self, input: Self::Input) -> Self::Output {
+        input.sigmoid()
+    }
+}
 
-    fn forward(&mut self, input: Self::Input) -> Self::Output {
+// #[derive(Default)]
+// pub struct Sigmoid4<const D1: u16, const D2: u16, const D3: u16, const D4: u16> {}
+
+// impl <const D1: u16, const D2: u16, const D3: u16, const D4: u16>Module for Sigmoid4<D1, D2, D3, D4> {
+//     type Input = Tensor4<D1, D2, D3, D4>;
+//     type Output = Tensor4<D1, D2, D3, D4>;
+
+//     fn forward(&self, input: Self::Input) -> Self::Output {
+//         input.sigmoid()
+//     }
+// }
+
+// #[derive(Default)]
+// pub struct Sigmoid5<const D1: u16, const D2: u16, const D3: u16, const D4: u16, const D5: u16> {}
+
+// impl <const D1: u16, const D2: u16, const D3: u16, const D4: u16, const D5: u16>Module for Sigmoid5<D1, D2, D3, D4, D5> {
+//     type Input = Tensor5<D1, D2, D3, D4, D5>;
+//     type Output = Tensor5<D1, D2, D3, D4, D5>;
+
+//     fn forward(&self, input: Self::Input) -> Self::Output {
+//         input.sigmoid()
+//     }
+// }
+
+#[derive(Default)]
+pub struct PReLU1<const D1: u16> {
+    weight: Tensor1<1>
+}
+
+impl <const D1: u16>Module for PReLU1<D1> {
+    type Input = Tensor1<D1>;
+    type Output = Tensor1<D1>;
+
+    fn forward(&self, input: Self::Input) -> Self::Output {
         input.prelu(&self.weight)
     }
 }
 
-impl ModuleCopy for PReLU {
-    fn copy(&mut self, source: &Self) -> Result<(), WeightCopyError> {
-        if self.weight.size() != source.weight.size() {
-            Err(WeightCopyError::SizeMismatch)
-        } else {
-            tch::no_grad(|| {
-                self.weight.copy_(&source.weight);
-            });
-            Ok(())
-        }
+#[derive(Default)]
+pub struct PReLU2<const D1: u16, const D2: u16> {
+    weight: Tensor1<1>
+}
+
+impl <const D1: u16, const D2: u16>Module for PReLU2<D1, D2> {
+    type Input = Tensor2<D1, D2>;
+    type Output = Tensor2<D1, D2>;
+
+    fn forward(&self, input: Self::Input) -> Self::Output {
+        input.prelu(&self.weight)
     }
 }
+
+#[derive(Default)]
+pub struct PReLU3<const D1: u16, const D2: u16, const D3: u16> {
+    weight: Tensor1<1>
+}
+
+impl <const D1: u16, const D2: u16, const D3: u16>Module for PReLU3<D1, D2, D3> {
+    type Input = Tensor3<D1, D2, D3>;
+    type Output = Tensor3<D1, D2, D3>;
+
+    fn forward(&self, input: Self::Input) -> Self::Output {
+        input.prelu(&self.weight)
+    }
+}
+
+// #[derive(Default)]
+// pub struct PReLU4<const D1: u16, const D2: u16, const D3: u16, const D4: u16> {
+//     weight: Tensor1<1>
+// }
+
+// impl <const D1: u16, const D2: u16, const D3: u16, const D4: u16>Module for PReLU4<D1, D2, D3, D4> {
+//     type Input = Tensor4<D1, D2, D3, D4>;
+//     type Output = Tensor4<D1, D2, D3, D4>;
+
+//     fn forward(&self, input: Self::Input) -> Self::Output {
+//         input.prelu(&self.weight)
+//     }
+// }
+
+// #[derive(Default)]
+// pub struct PReLU5<const D1: u16, const D2: u16, const D3: u16, const D4: u16, const D5: u16> {
+//     weight: Tensor1<1>
+// }
+
+// impl <const D1: u16, const D2: u16, const D3: u16, const D4: u16, const D5: u16>Module for PReLU5<D1, D2, D3, D4, D5> {
+//     type Input = Tensor5<D1, D2, D3, D4, D5>;
+//     type Output = Tensor5<D1, D2, D3, D4, D5>;
+
+//     fn forward(&self, input: Self::Input) -> Self::Output {
+//         input.prelu(&self.weight)
+//     }
+// }
