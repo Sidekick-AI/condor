@@ -1,8 +1,8 @@
+#![allow(incomplete_features)]
 #![feature(generic_const_exprs)]
 #![feature(adt_const_params)]
 #![feature(structural_match)]
 #![feature(generic_associated_types)]
-#![feature(specialization)]
 
 mod tensor;
 mod modules;

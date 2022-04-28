@@ -5,10 +5,10 @@ use crate::tensor::*;
 #[test]
 fn test_1d_tensor() {
     let tmp = [3.,2.,4.];
-    let tensor: Tensor1<3> = Tensor1::default();
+    let tensor: Tensor1<3> = Tensor1::from_arr(&tmp);
 
     let tmp = [3.,2., 3.];
-    let tensor2: Tensor1<3> = Tensor1::default();
+    let tensor2: Tensor1<3> = Tensor1::from_arr(&tmp);
 
     let _tensor3 = &tensor + &tensor2;
     let _tensor4 = &tensor - &tensor2;
@@ -19,10 +19,10 @@ fn test_1d_tensor() {
 #[test]
 fn test_2d_tensor() {
     let tmp = [[3.,2.,4.],[3.4,4.5,2.3]];
-    let tensor: Tensor2<2, 3> = Tensor2::default();
+    let tensor: Tensor2<2, 3> = Tensor2::from_arr(&tmp);
 
     let tmp = [[3.,2., 3.],[12.3,4.4,56.4]];
-    let tensor2: Tensor2<2, 3> = Tensor2::default();
+    let tensor2: Tensor2<2, 3> = Tensor2::from_arr(&tmp);
 
     let _tensor3 = &tensor + &tensor2;
     let _tensor4 = &tensor - &tensor2;
@@ -37,10 +37,10 @@ fn add_tensors_fn() {
     }
 
     let tmp = [[3.,2.,4.],[3.4,4.5,2.3]];
-    let tensor: Tensor2<2, 3> = Tensor2::default();
+    let tensor: Tensor2<2, 3> = Tensor2::from_arr(&tmp);
 
     let tmp = [[3.,2., 3.],[12.3,4.4,56.4]];
-    let tensor2: Tensor2<2, 3> = Tensor2::default();
+    let tensor2: Tensor2<2, 3> = Tensor2::from_arr(&tmp);
 
     let _tensor3 = add(&tensor, &tensor2);
 }

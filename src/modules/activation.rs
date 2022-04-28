@@ -39,55 +39,55 @@ use crate::{Tensor1, Tensor2, Tensor3, Module};
 
 impl <const D1: u16, const D2: u16, const D3: u16>Tensor3<D1, D2, D3> {
     pub fn relu(&self) -> Self {
-        todo!()
+        Self::new(self.data.relu())
     }
 
     pub fn gelu(&self) -> Self {
-        todo!()
+        Self::new(self.data.gelu())
     }
 
     pub fn sigmoid(&self) -> Self {
-        todo!()
+        Self::new(self.data.sigmoid())
     }
 
     pub fn prelu(&self, weight: &Tensor1<1>) -> Self {
-        todo!()
+        Self::new(self.data.prelu(&weight.data))
     }
 }
 
 impl <const D1: u16, const D2: u16>Tensor2<D1, D2> {
     pub fn relu(&self) -> Self {
-        todo!()
+        Self::new(self.data.relu())
     }
 
     pub fn gelu(&self) -> Self {
-        todo!()
+        Self::new(self.data.gelu())
     }
 
     pub fn sigmoid(&self) -> Self {
-        todo!()
+        Self::new(self.data.sigmoid())
     }
 
     pub fn prelu(&self, weight: &Tensor1<1>) -> Self {
-        todo!()
+        Self::new(self.data.prelu(&weight.data))
     }
 }
 
 impl <const D1: u16>Tensor1<D1> {
     pub fn relu(&self) -> Self {
-        todo!()
+        Self::new(self.data.relu())
     }
 
     pub fn gelu(&self) -> Self {
-        todo!()
+        Self::new(self.data.gelu())
     }
 
     pub fn sigmoid(&self) -> Self {
-        todo!()
+        Self::new(self.data.sigmoid())
     }
 
     pub fn prelu(&self, weight: &Tensor1<1>) -> Self {
-        todo!()
+        Self::new(self.data.prelu(&weight.data))
     }
 }
 
@@ -272,9 +272,14 @@ impl <const D1: u16, const D2: u16, const D3: u16>Module for Sigmoid3<D1, D2, D3
 //     }
 // }
 
-#[derive(Default)]
 pub struct PReLU1<const D1: u16> {
     weight: Tensor1<1>
+}
+
+impl <const D1: u16>Default for PReLU1<D1> {
+    fn default() -> Self {
+        Self { weight: Tensor1::rand() }
+    }
 }
 
 impl <const D1: u16>Module for PReLU1<D1> {
@@ -286,9 +291,14 @@ impl <const D1: u16>Module for PReLU1<D1> {
     }
 }
 
-#[derive(Default)]
 pub struct PReLU2<const D1: u16, const D2: u16> {
     weight: Tensor1<1>
+}
+
+impl <const D1: u16, const D2: u16>Default for PReLU2<D1, D2> {
+    fn default() -> Self {
+        Self { weight: Tensor1::rand() }
+    }
 }
 
 impl <const D1: u16, const D2: u16>Module for PReLU2<D1, D2> {
@@ -300,9 +310,14 @@ impl <const D1: u16, const D2: u16>Module for PReLU2<D1, D2> {
     }
 }
 
-#[derive(Default)]
 pub struct PReLU3<const D1: u16, const D2: u16, const D3: u16> {
     weight: Tensor1<1>
+}
+
+impl <const D1: u16, const D2: u16, const D3: u16>Default for PReLU3<D1, D2, D3> {
+    fn default() -> Self {
+        Self { weight: Tensor1::rand() }
+    }
 }
 
 impl <const D1: u16, const D2: u16, const D3: u16>Module for PReLU3<D1, D2, D3> {

@@ -5,13 +5,13 @@ use crate::modules::*;
 fn test_linear() {
     let linear: Linear<10, 100, 50> = Linear::default();
 
-    let inp: Tensor2<10, 100> = Tensor2::default();
+    let inp: Tensor2<10, 100> = Tensor2::rand();
     let _output = linear.forward(inp);
 }
 
 #[test]
 fn test_activations() {
-    let tensor: Tensor3<10, 64, 1000> = Tensor3::default();
+    let tensor: Tensor3<10, 64, 1000> = Tensor3::rand();
 
     let tensor = tensor.relu();
     let tensor = tensor.gelu();
@@ -28,6 +28,6 @@ fn test_sequential() {
         Linear::<100, 100, 25>::default()
     );
 
-    let input: Tensor2<100, 50> = Tensor2::default();
+    let input: Tensor2<100, 50> = Tensor2::rand();
     let _output = sequential.forward(input);
 }

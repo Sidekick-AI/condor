@@ -8,8 +8,8 @@ pub struct Linear<const BATCH: u16, const IN: u16, const OUT: u16> {
 impl <const BATCH: u16, const IN: u16, const OUT: u16>Default for Linear<BATCH, IN, OUT> {
     fn default() -> Self {
         Self {
-            weight: Tensor2::default(),
-            bias: Tensor1::default()
+            weight: Tensor2::rand(),
+            bias: Tensor1::rand()
         }
     }
 }
