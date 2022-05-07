@@ -22,21 +22,48 @@ impl <const D1: u16, const D2: u16>Add<&Tensor2<D1, D2>> for &Tensor2<D1, D2> {
     }
 }
 
-// Broadcast across first dim
-impl <const D1: u16, const D2: u16>Add<&Tensor1<D2>> for &Tensor2<D1, D2> {
-    type Output = Tensor2<D1, D2>;
+impl <const D1: u16, const D2: u16, const D3: u16>Add<&Tensor3<D1, D2, D3>> for &Tensor3<D1, D2, D3> {
+    type Output = Tensor3<D1, D2, D3>;
 
-    fn add(self, rhs: &Tensor1<D2>) -> Self::Output {
+    fn add(self, rhs: &Tensor3<D1, D2, D3>) -> Self::Output {
         let mut new = self.clone();
         new.data += &rhs.data;
         new
     }
 }
 
-impl <const D1: u16, const D2: u16, const D3: u16>Add<&Tensor3<D1, D2, D3>> for &Tensor3<D1, D2, D3> {
+impl <const D1: u16>Add<Tensor1<D1>> for Tensor1<D1> {
+    type Output = Tensor1<D1>;
+
+    fn add(mut self, rhs: Tensor1<D1>) -> Self::Output {
+        self.data += &rhs.data;
+        self
+    }
+}
+
+impl <const D1: u16, const D2: u16>Add<Tensor2<D1, D2>> for Tensor2<D1, D2> {
+    type Output = Tensor2<D1, D2>;
+
+    fn add(mut self, rhs: Tensor2<D1, D2>) -> Self::Output {
+        self.data += &rhs.data;
+        self
+    }
+}
+
+impl <const D1: u16, const D2: u16, const D3: u16>Add<Tensor3<D1, D2, D3>> for Tensor3<D1, D2, D3> {
     type Output = Tensor3<D1, D2, D3>;
 
-    fn add(self, rhs: &Tensor3<D1, D2, D3>) -> Self::Output {
+    fn add(mut self, rhs: Tensor3<D1, D2, D3>) -> Self::Output {
+        self.data += &rhs.data;
+        self
+    }
+}
+
+// Broadcast across first dim
+impl <const D1: u16, const D2: u16>Add<&Tensor1<D2>> for &Tensor2<D1, D2> {
+    type Output = Tensor2<D1, D2>;
+
+    fn add(self, rhs: &Tensor1<D2>) -> Self::Output {
         let mut new = self.clone();
         new.data += &rhs.data;
         new
@@ -74,6 +101,33 @@ impl <const D1: u16, const D2: u16, const D3: u16>Sub<&Tensor3<D1, D2, D3>> for 
     }
 }
 
+impl <const D1: u16>Sub<Tensor1<D1>> for Tensor1<D1> {
+    type Output = Tensor1<D1>;
+
+    fn sub(mut self, rhs: Tensor1<D1>) -> Self::Output {
+        self.data -= &rhs.data;
+        self
+    }
+}
+
+impl <const D1: u16, const D2: u16>Sub<Tensor2<D1, D2>> for Tensor2<D1, D2> {
+    type Output = Tensor2<D1, D2>;
+
+    fn sub(mut self, rhs: Tensor2<D1, D2>) -> Self::Output {
+        self.data -= &rhs.data;
+        self
+    }
+}
+
+impl <const D1: u16, const D2: u16, const D3: u16>Sub<Tensor3<D1, D2, D3>> for Tensor3<D1, D2, D3> {
+    type Output = Tensor3<D1, D2, D3>;
+
+    fn sub(mut self, rhs: Tensor3<D1, D2, D3>) -> Self::Output {
+        self.data -= &rhs.data;
+        self
+    }
+}
+
 // Element-wise multiplication
 impl <const D1: u16>Mul<&Tensor1<D1>> for &Tensor1<D1> {
     type Output = Tensor1<D1>;
@@ -105,6 +159,33 @@ impl <const D1: u16, const D2: u16, const D3: u16>Mul<&Tensor3<D1, D2, D3>> for 
     }
 }
 
+impl <const D1: u16>Mul<Tensor1<D1>> for Tensor1<D1> {
+    type Output = Tensor1<D1>;
+
+    fn mul(mut self, rhs: Tensor1<D1>) -> Self::Output {
+        self.data *= &rhs.data;
+        self
+    }
+}
+
+impl <const D1: u16, const D2: u16>Mul<Tensor2<D1, D2>> for Tensor2<D1, D2> {
+    type Output = Tensor2<D1, D2>;
+
+    fn mul(mut self, rhs: Tensor2<D1, D2>) -> Self::Output {
+        self.data *= &rhs.data;
+        self
+    }
+}
+
+impl <const D1: u16, const D2: u16, const D3: u16>Mul<Tensor3<D1, D2, D3>> for Tensor3<D1, D2, D3> {
+    type Output = Tensor3<D1, D2, D3>;
+
+    fn mul(mut self, rhs: Tensor3<D1, D2, D3>) -> Self::Output {
+        self.data *= &rhs.data;
+        self
+    }
+}
+
 // Element-wise division
 impl <const D1: u16>Div<&Tensor1<D1>> for &Tensor1<D1> {
     type Output = Tensor1<D1>;
@@ -133,5 +214,32 @@ impl <const D1: u16, const D2: u16, const D3: u16>Div<&Tensor3<D1, D2, D3>> for 
         let mut new = self.clone();
         new.data /= &rhs.data;
         new
+    }
+}
+
+impl <const D1: u16>Div<Tensor1<D1>> for Tensor1<D1> {
+    type Output = Tensor1<D1>;
+
+    fn div(mut self, rhs: Tensor1<D1>) -> Self::Output {
+        self.data /= &rhs.data;
+        self
+    }
+}
+
+impl <const D1: u16, const D2: u16>Div<Tensor2<D1, D2>> for Tensor2<D1, D2> {
+    type Output = Tensor2<D1, D2>;
+
+    fn div(mut self, rhs: Tensor2<D1, D2>) -> Self::Output {
+        self.data /= &rhs.data;
+        self
+    }
+}
+
+impl <const D1: u16, const D2: u16, const D3: u16>Div<Tensor3<D1, D2, D3>> for Tensor3<D1, D2, D3> {
+    type Output = Tensor3<D1, D2, D3>;
+
+    fn div(mut self, rhs: Tensor3<D1, D2, D3>) -> Self::Output {
+        self.data /= &rhs.data;
+        self
     }
 }

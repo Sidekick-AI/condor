@@ -1,1 +1,3 @@
 - typed operator specialization
+- Implement true repeat functions for tensors
+- Unify tensors into single type

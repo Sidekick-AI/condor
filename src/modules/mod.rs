@@ -2,11 +2,13 @@ mod activation;
 mod linear;
 mod sequential;
 mod other;
+mod rnn;
 
 pub use activation::*;
 pub use linear::*;
 pub use sequential::*;
 pub use other::*;
+pub use rnn::*;
 
 #[cfg(test)]
 mod tests;

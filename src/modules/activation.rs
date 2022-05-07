@@ -1,5 +1,21 @@
 use crate::{Tensor1, Tensor2, Tensor3, Module};
 
+pub trait Activation {
+    type Tensor;
+
+    fn apply(&self, input: Self::Tensor) -> Self::Tensor;
+}
+
+/// Blanket impl module for all activations
+impl <T>Module for T where T: Activation {
+    type Input = T::Tensor;
+    type Output = T::Tensor;
+
+    fn forward(&self, input: Self::Input) -> Self::Output {
+        self.apply(input)
+    }
+}
+
 // Tensor impls
 // impl <const D1: u16, const D2: u16, const D3: u16, const D4: u16, const D5: u16>Tensor5<D1, D2, D3, D4, D5> {
 //     pub fn relu(&self) -> Self {
@@ -92,38 +108,35 @@ impl <const D1: u16>Tensor1<D1> {
 }
 
 // Activation Modules
-#[derive(Default)]
+#[derive(Default, Clone, Copy)]
 pub struct ReLU1<const D1: u16> {}
 
-impl <const D1: u16>Module for ReLU1<D1> {
-    type Input = Tensor1<D1>;
-    type Output = Tensor1<D1>;
+impl <const D1: u16>Activation for ReLU1<D1> {
+    type Tensor = Tensor1<D1>;
 
-    fn forward(&self, input: Self::Input) -> Self::Output {
+    fn apply(&self, input: Self::Tensor) -> Self::Tensor {
         input.relu()
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Clone, Copy)]
 pub struct ReLU2<const D1: u16, const D2: u16> {}
 
-impl <const D1: u16, const D2: u16>Module for ReLU2<D1, D2> {
-    type Input = Tensor2<D1, D2>;
-    type Output = Tensor2<D1, D2>;
+impl <const D1: u16, const D2: u16>Activation for ReLU2<D1, D2> {
+    type Tensor = Tensor2<D1, D2>;
 
-    fn forward(&self, input: Self::Input) -> Self::Output {
+    fn apply(&self, input: Self::Tensor) -> Self::Tensor {
         input.relu()
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Clone, Copy)]
 pub struct ReLU3<const D1: u16, const D2: u16, const D3: u16> {}
 
-impl <const D1: u16, const D2: u16, const D3: u16>Module for ReLU3<D1, D2, D3> {
-    type Input = Tensor3<D1, D2, D3>;
-    type Output = Tensor3<D1, D2, D3>;
+impl <const D1: u16, const D2: u16, const D3: u16>Activation for ReLU3<D1, D2, D3> {
+    type Tensor = Tensor3<D1, D2, D3>;
 
-    fn forward(&self, input: Self::Input) -> Self::Output {
+    fn apply(&self, input: Self::Tensor) -> Self::Tensor {
         input.relu()
     }
 }
@@ -152,38 +165,35 @@ impl <const D1: u16, const D2: u16, const D3: u16>Module for ReLU3<D1, D2, D3> {
 //     }
 // }
 
-#[derive(Default)]
+#[derive(Default, Clone, Copy)]
 pub struct GeLU1<const D1: u16> {}
 
-impl <const D1: u16>Module for GeLU1<D1> {
-    type Input = Tensor1<D1>;
-    type Output = Tensor1<D1>;
+impl <const D1: u16>Activation for GeLU1<D1> {
+    type Tensor = Tensor1<D1>;
 
-    fn forward(&self, input: Self::Input) -> Self::Output {
+    fn apply(&self, input: Self::Tensor) -> Self::Tensor {
         input.gelu()
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Clone, Copy)]
 pub struct GeLU2<const D1: u16, const D2: u16> {}
 
-impl <const D1: u16, const D2: u16>Module for GeLU2<D1, D2> {
-    type Input = Tensor2<D1, D2>;
-    type Output = Tensor2<D1, D2>;
+impl <const D1: u16, const D2: u16>Activation for GeLU2<D1, D2> {
+    type Tensor = Tensor2<D1, D2>;
 
-    fn forward(&self, input: Self::Input) -> Self::Output {
+    fn apply(&self, input: Self::Tensor) -> Self::Tensor {
         input.gelu()
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Clone, Copy)]
 pub struct GeLU3<const D1: u16, const D2: u16, const D3: u16> {}
 
-impl <const D1: u16, const D2: u16, const D3: u16>Module for GeLU3<D1, D2, D3> {
-    type Input = Tensor3<D1, D2, D3>;
-    type Output = Tensor3<D1, D2, D3>;
+impl <const D1: u16, const D2: u16, const D3: u16>Activation for GeLU3<D1, D2, D3> {
+    type Tensor = Tensor3<D1, D2, D3>;
 
-    fn forward(&self, input: Self::Input) -> Self::Output {
+    fn apply(&self, input: Self::Tensor) -> Self::Tensor {
         input.gelu()
     }
 }
@@ -212,38 +222,35 @@ impl <const D1: u16, const D2: u16, const D3: u16>Module for GeLU3<D1, D2, D3> {
 //     }
 // }
 
-#[derive(Default)]
+#[derive(Default, Clone, Copy)]
 pub struct Sigmoid1<const D1: u16> {}
 
-impl <const D1: u16>Module for Sigmoid1<D1> {
-    type Input = Tensor1<D1>;
-    type Output = Tensor1<D1>;
+impl <const D1: u16>Activation for Sigmoid1<D1> {
+    type Tensor = Tensor1<D1>;
 
-    fn forward(&self, input: Self::Input) -> Self::Output {
+    fn apply(&self, input: Self::Tensor) -> Self::Tensor {
         input.sigmoid()
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Clone, Copy)]
 pub struct Sigmoid2<const D1: u16, const D2: u16> {}
 
-impl <const D1: u16, const D2: u16>Module for Sigmoid2<D1, D2> {
-    type Input = Tensor2<D1, D2>;
-    type Output = Tensor2<D1, D2>;
+impl <const D1: u16, const D2: u16>Activation for Sigmoid2<D1, D2> {
+    type Tensor = Tensor2<D1, D2>;
 
-    fn forward(&self, input: Self::Input) -> Self::Output {
+    fn apply(&self, input: Self::Tensor) -> Self::Tensor {
         input.sigmoid()
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Clone, Copy)]
 pub struct Sigmoid3<const D1: u16, const D2: u16, const D3: u16> {}
 
-impl <const D1: u16, const D2: u16, const D3: u16>Module for Sigmoid3<D1, D2, D3> {
-    type Input = Tensor3<D1, D2, D3>;
-    type Output = Tensor3<D1, D2, D3>;
+impl <const D1: u16, const D2: u16, const D3: u16>Activation for Sigmoid3<D1, D2, D3> {
+    type Tensor = Tensor3<D1, D2, D3>;
 
-    fn forward(&self, input: Self::Input) -> Self::Output {
+    fn apply(&self, input: Self::Tensor) -> Self::Tensor {
         input.sigmoid()
     }
 }
@@ -272,6 +279,7 @@ impl <const D1: u16, const D2: u16, const D3: u16>Module for Sigmoid3<D1, D2, D3
 //     }
 // }
 
+#[derive(Clone)]
 pub struct PReLU1<const D1: u16> {
     weight: Tensor1<1>
 }
@@ -282,15 +290,15 @@ impl <const D1: u16>Default for PReLU1<D1> {
     }
 }
 
-impl <const D1: u16>Module for PReLU1<D1> {
-    type Input = Tensor1<D1>;
-    type Output = Tensor1<D1>;
+impl <const D1: u16>Activation for PReLU1<D1> {
+    type Tensor = Tensor1<D1>;
 
-    fn forward(&self, input: Self::Input) -> Self::Output {
+    fn apply(&self, input: Self::Tensor) -> Self::Tensor {
         input.prelu(&self.weight)
     }
 }
 
+#[derive(Clone)]
 pub struct PReLU2<const D1: u16, const D2: u16> {
     weight: Tensor1<1>
 }
@@ -301,15 +309,15 @@ impl <const D1: u16, const D2: u16>Default for PReLU2<D1, D2> {
     }
 }
 
-impl <const D1: u16, const D2: u16>Module for PReLU2<D1, D2> {
-    type Input = Tensor2<D1, D2>;
-    type Output = Tensor2<D1, D2>;
+impl <const D1: u16, const D2: u16>Activation for PReLU2<D1, D2> {
+    type Tensor = Tensor2<D1, D2>;
 
-    fn forward(&self, input: Self::Input) -> Self::Output {
+    fn apply(&self, input: Self::Tensor) -> Self::Tensor {
         input.prelu(&self.weight)
     }
 }
 
+#[derive(Clone)]
 pub struct PReLU3<const D1: u16, const D2: u16, const D3: u16> {
     weight: Tensor1<1>
 }
@@ -320,11 +328,10 @@ impl <const D1: u16, const D2: u16, const D3: u16>Default for PReLU3<D1, D2, D3>
     }
 }
 
-impl <const D1: u16, const D2: u16, const D3: u16>Module for PReLU3<D1, D2, D3> {
-    type Input = Tensor3<D1, D2, D3>;
-    type Output = Tensor3<D1, D2, D3>;
+impl <const D1: u16, const D2: u16, const D3: u16>Activation for PReLU3<D1, D2, D3> {
+    type Tensor = Tensor3<D1, D2, D3>;
 
-    fn forward(&self, input: Self::Input) -> Self::Output {
+    fn apply(&self, input: Self::Tensor) -> Self::Tensor {
         input.prelu(&self.weight)
     }
 }
