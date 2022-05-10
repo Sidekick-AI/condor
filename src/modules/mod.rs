@@ -1,24 +1,23 @@
-mod activation;
+/// The NNModule trait
+mod module;
+pub use module::*;
+/// Linear Layers
 mod linear;
-mod sequential;
-mod other;
-mod rnn;
-
-pub use activation::*;
 pub use linear::*;
+/// Sequential Layer
+#[macro_use] mod sequential;
 pub use sequential::*;
-pub use other::*;
+/// Transformer Layers
+// mod transformer;
+// pub use transformer::*;
+/// RNN Layers
+mod rnn;
 pub use rnn::*;
-
-#[cfg(test)]
+/// Activation Layers
+mod activation;
+pub use activation::*;
+/// Other Layers
+mod other;
+pub use other::*;
+/// Module tests
 mod tests;
-
-pub trait Module {
-    type Input;
-    type Output;
-
-    fn train(&mut self) {}
-    fn eval(&mut self) {}
-
-    fn forward(&self, input: Self::Input) -> Self::Output;
-}

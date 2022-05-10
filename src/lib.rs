@@ -1,15 +1,17 @@
-#![allow(incomplete_features)]
 #![feature(generic_const_exprs)]
 #![feature(adt_const_params)]
-#![feature(structural_match)]
-#![feature(generic_associated_types)]
-#![feature(specialization)]
 
+/// All NN modules
+pub mod modules;
+
+/// Common utilities for machine learning
+pub mod utils;
+
+/// Condor tensor
 mod tensor;
-mod modules;
+pub use tensor::Tensor;
 
-pub use tensor::*;
-pub use modules::*;
+mod other_crates;
 
 #[cfg(test)]
 mod tests;

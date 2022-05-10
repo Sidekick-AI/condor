@@ -1,33 +1,42 @@
-use crate::{Module, Tensor2, sequential, Tensor3};
-use crate::modules::*;
+#[cfg(test)]
+mod linear_tests {
+    use tch::{Device, Kind, Tensor, nn};
+    use crate::{modules::Module, utils::count_parameters};
 
-#[test]
-fn test_linear() {
-    let linear: Linear<10, 100, 50> = Linear::default();
+    use super::super::Linear;
 
-    let inp: Tensor2<10, 100> = Tensor2::rand();
-    let _output = linear.forward(inp);
+    #[test]
+    fn test_linear() {
+        let vs = nn::VarStore::new(Device::cuda_if_available());
+        let mut layer = Linear::new(&(&vs.root() / "linear"), 100, 20);
+        let input = Tensor::rand(&[64, 100], (Kind::Float, Device::cuda_if_available()));
+        let output = layer.forward(input);
+        assert_eq!(output.size(), &[64, 20]);
+        assert_eq!(count_parameters(&vs), 2020);
+    }
 }
 
-#[test]
-fn test_activations() {
-    let tensor: Tensor3<10, 64, 1000> = Tensor3::rand();
+#[cfg(test)]
+mod rnn_test {
 
-    let tensor = tensor.relu();
-    let tensor = tensor.gelu();
-    let tensor = tensor.sigmoid();
-
-    let prelu = PReLU3::default();
-    let _tensor = prelu.forward(tensor);
 }
 
-#[test]
-fn test_sequential() {
-    let sequential = sequential!(
-        Linear::<100, 50, 100>::default(),
-        Linear::<100, 100, 25>::default()
-    );
+#[cfg(test)]
+mod sequential_tests {
+    use tch::{Device, Kind, Tensor, nn};
+    use crate::{modules::Module, sequential, utils::count_parameters};
+    use super::super::{Linear, PReLU};
 
-    let input: Tensor2<100, 50> = Tensor2::rand();
-    let _output = sequential.forward(input);
+    #[test]
+    fn test_sequential() {
+        let vs = nn::VarStore::new(Device::cuda_if_available());
+        let linear_layer1 = Linear::new(&(&vs.root() / "linear"), 100, 20);
+        let linear_layer2 = Linear::new(&(&vs.root() / "linear"), 20, 150);
+        let mut seq = sequential!(linear_layer1, PReLU::new(&vs.root() / "linear"), linear_layer2);
+        
+        let input = Tensor::rand(&[64, 100], (Kind::Float, Device::cuda_if_available()));
+        let output = seq.forward(input);
+        assert_eq!(output.size(), &[64, 150]);
+        assert_eq!(count_parameters(&vs), 5171);
+    }
 }

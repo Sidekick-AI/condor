@@ -1,73 +1,169 @@
-use derive_new::new;
+use std::borrow::Borrow;
+use tch::{Tensor, nn::{self, EmbeddingConfig, LayerNormConfig}};
+use super::{ModuleCopy, Module, WeightCopyError};
 
-use crate::{Module, Tensor1, Tensor2, Tensor3};
-
-// #[derive(new)]
-// pub struct Dropout5<const D1: u16, const D2: u16, const D3: u16, const D4: u16, const D5: u16> {
-//     p: f64
-// }
-
-// impl <const D1: u16, const D2: u16, const D3: u16, const D4: u16, const D5: u16>Module for Dropout5<D1, D2, D3, D4, D5> {
-//     type Input = Tensor5<D1, D2, D3, D4, D5>;
-//     type Output = Tensor5<D1, D2, D3, D4, D5>;
-
-//     fn forward(&self, input: Self::Input) -> Self::Output {
-//         input * self.p
-//     }
-// }
-
-// #[derive(new)]
-// pub struct Dropout4<const D1: u16, const D2: u16, const D3: u16, const D4: u16> {
-//     p: f64
-// }
-
-// impl <const D1: u16, const D2: u16, const D3: u16, const D4: u16>Module for Dropout4<D1, D2, D3, D4> {
-//     type Input = Tensor4<D1, D2, D3, D4>;
-//     type Output = Tensor4<D1, D2, D3, D4>;
-
-//     fn forward(&self, input: Self::Input) -> Self::Output {
-//         input * self.p
-//     }
-// }
-
-#[derive(new)]
-pub struct Dropout3<const D1: u16, const D2: u16, const D3: u16> {
-    p: f32
+/// A layer-normalization layer.
+#[derive(Debug)]
+pub struct LayerNorm {
+    config: LayerNormConfig,
+    pub ws: Option<Tensor>,
+    pub bs: Option<Tensor>,
+    pub normalized_shape: Vec<i64>,
 }
 
-impl <const D1: u16, const D2: u16, const D3: u16>Module for Dropout3<D1, D2, D3> {
-    type Input = Tensor3<D1, D2, D3>;
-    type Output = Tensor3<D1, D2, D3>;
+impl Module for LayerNorm {
+    type Input = tch::Tensor;
+    type Output = tch::Tensor;
 
-    fn forward(&self, input: Self::Input) -> Self::Output {
-        input * self.p
+    fn train(&mut self) {}
+
+    fn eval(&mut self) {}
+
+    fn forward(&mut self, input: Self::Input) -> Self::Output {
+        Tensor::layer_norm(
+            &input,
+            self.normalized_shape.as_slice(),
+            self.ws.as_ref(),
+            self.bs.as_ref(),
+            self.config.eps,
+            self.config.cudnn_enabled,
+        )
     }
 }
 
-#[derive(new)]
-pub struct Dropout2<const D1: u16, const D2: u16> {
-    p: f32
-}
+impl LayerNorm {
+    pub fn new<'a, T: Borrow<nn::Path<'a>>>(vs: T, normalized_shape: Vec<i64>) -> Self {
+        let vs = vs.borrow();
 
-impl <const D1: u16, const D2: u16>Module for Dropout2<D1, D2> {
-    type Input = Tensor2<D1, D2>;
-    type Output = Tensor2<D1, D2>;
+        let config = LayerNormConfig::default();
+        let (ws, bs) = if config.elementwise_affine {
+            let ws = vs.var("weight", normalized_shape.as_slice(), config.ws_init);
+            let bs = vs.var("bias", normalized_shape.as_slice(), config.bs_init);
+            (Some(ws), Some(bs))
+        } else {
+            (None, None)
+        };
 
-    fn forward(&self, input: Self::Input) -> Self::Output {
-        input * self.p
+        LayerNorm {
+            config,
+            ws,
+            bs,
+            normalized_shape,
+        }
     }
 }
 
-#[derive(new)]
-pub struct Dropout1<const D1: u16> {
-    p: f32
+/// An embedding layer.
+///
+/// An embedding layer acts as a simple lookup table that stores embeddings.
+/// This is commonly used to store word embeddings.
+#[derive(Debug)]
+pub struct Embedding {
+    pub ws: Tensor,
+    config: EmbeddingConfig,
 }
 
-impl <const D1: u16>Module for Dropout1<D1> {
-    type Input = Tensor1<D1>;
-    type Output = Tensor1<D1>;
+impl Module for Embedding {
+    type Input = tch::Tensor;
+    type Output = tch::Tensor;
 
-    fn forward(&self, input: Self::Input) -> Self::Output {
-        input * self.p
+    fn train(&mut self) {}
+
+    fn eval(&mut self) {}
+
+    fn forward(&mut self, input: Self::Input) -> Self::Output {
+        Tensor::embedding(
+            &self.ws,
+            &input,
+            self.config.padding_idx,
+            self.config.scale_grad_by_freq,
+            self.config.sparse,
+        )
+    }
+}
+
+impl Embedding {
+    pub fn new<'a, T: Borrow<nn::Path<'a>>>(vs: T, num_embeddings: i64, embedding_dim: i64) -> Self {
+        let vs = vs.borrow();
+        let config = EmbeddingConfig::default();
+        Embedding {
+            ws: vs.var("weight", &[num_embeddings, embedding_dim], config.ws_init),
+            config,
+        }
+    }
+}
+
+/// A layer defined by a closure
+pub struct Func<'a> {
+    f: Box<dyn 'a + Fn(&Tensor, bool) -> Tensor + Send>,
+    train: bool
+}
+
+impl<'a> std::fmt::Debug for Func<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "func")
+    }
+}
+
+pub fn func<'a, F>(f: F) -> Func<'a>
+where
+    F: 'a + Fn(&Tensor, bool) -> Tensor + Send,
+{
+    Func { f: Box::new(f), train: true }
+}
+
+impl<'a> Module for Func<'a> {
+    type Input = tch::Tensor;
+    type Output = tch::Tensor;
+
+    fn train(&mut self) {
+        self.train = true;
+    }
+
+    fn eval(&mut self) {
+        self.train = false;
+    }
+
+    fn forward(&mut self, input: Self::Input) -> Self::Output {
+        (*self.f)(&input, self.train)
+    }
+}
+
+impl ModuleCopy for LayerNorm {
+    fn copy(&mut self, source: &Self) -> Result<(), WeightCopyError> {
+        if let Some(bs_dest) = &mut self.bs {
+            if let Some(bs_source) = &source.bs {
+                if bs_dest.size() != bs_source.size() {
+                    return Err(WeightCopyError::SizeMismatch);
+                }
+                tch::no_grad(|| {
+                    bs_dest.copy_(bs_source);
+                });
+            }
+        }
+        if let Some(ws_dest) = &mut self.ws {
+            if let Some(ws_source) = &source.ws {
+                if ws_dest.size() != ws_source.size() {
+                    return Err(WeightCopyError::SizeMismatch);
+                }
+                tch::no_grad(|| {
+                    ws_dest.copy_(ws_source);
+                });
+            }
+        }
+        Ok(())
+    }
+}
+
+impl ModuleCopy for Embedding {
+    fn copy(&mut self, source: &Self) -> Result<(), WeightCopyError> {
+        if self.ws.size() != source.ws.size() {
+            Err(WeightCopyError::SizeMismatch)
+        } else {
+            tch::no_grad(|| {
+                self.ws.copy_(&source.ws);
+            });
+            Ok(())
+        }
     }
 }
