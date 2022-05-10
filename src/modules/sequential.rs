@@ -41,7 +41,7 @@ mod sequential_macro {
     macro_rules! sequential {
         ($mod1:expr, $( $x:expr ),+ ) => {
             {
-                use crate::modules::Connector;
+                use $crate::modules::Connector;
                 let seq = $mod1;
                 $(
                     let seq = Connector::new(seq, $x);

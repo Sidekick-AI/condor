@@ -294,14 +294,14 @@ impl ProgressStyle {
                 if var.key == "bar" {
                     let bar_width = total_width.saturating_sub(measure_text_width(&s));
                     s.replace(
-                        "\x00",
+                        '\x00',
                         &self.format_bar(state.fraction(), bar_width, var.alt_style.as_ref()),
                     )
                 } else if var.key == "msg" {
                     let msg_width = total_width.saturating_sub(measure_text_width(&s));
                     let msg = pad_str(state.message(), msg_width, var.align, true);
                     s.replace(
-                        "\x00",
+                        '\x00',
                         if var.last_element {
                             msg.trim_end()
                         } else {
