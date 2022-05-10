@@ -1,6 +1,6 @@
 /// The NNModule trait
-mod module;
-pub use module::*;
+mod nnmodule;
+pub use nnmodule::*;
 /// Linear Layers
 mod linear;
 pub use linear::*;
@@ -8,8 +8,8 @@ pub use linear::*;
 #[macro_use] mod sequential;
 pub use sequential::*;
 /// Transformer Layers
-// mod transformer;
-// pub use transformer::*;
+mod transformer;
+pub use transformer::*;
 /// RNN Layers
 mod rnn;
 pub use rnn::*;
