@@ -27,7 +27,6 @@ pub struct TransformerEncoderProps<'a> {
 }
 
 impl TransformerEncoder {
-    #[allow(clippy::too_many_arguments)]
     pub fn new(props: TransformerEncoderProps) -> Self {
         TransformerEncoder {
             token_embedding: Embedding::new(
@@ -48,10 +47,6 @@ impl TransformerEncoder {
                     }
                     LocalPositionalEncoding::Sinusoidal(Tensor::of_slice2(&pe).to_kind(Kind::Float).to(props.p.device())) // Doesn't need to be a variable, we aren't tracking it's gradients
                 },
-                PositionalEncoding::Rotary => {
-                    // Build rotary vector
-                    todo!()
-                }
             },
             layernorm: LayerNorm::new(props.p / "ln_f", vec![props.n_embd]),
             blocks: {
@@ -76,9 +71,6 @@ impl TransformerEncoder {
             LocalPositionalEncoding::Sinusoidal(pe) => {
                 pe.i(..sz_t).repeat(&[batch_size, 1, 1])
             },
-            LocalPositionalEncoding::Rotary { inv_freq, seq_len_cached, cos_cached, sin_cached } => {
-                todo!()
-            }
         };
         let mut x = (xs + pos_emb)
             .dropout(self.dropout, self.train);
@@ -122,9 +114,6 @@ impl Module for TransformerEncoder {
             LocalPositionalEncoding::Sinusoidal(pe) => {
                 pe.i(..sz_t).repeat(&[batch_size, 1, 1])
             },
-            LocalPositionalEncoding::Rotary{inv_freq, seq_len_cached, cos_cached, sin_cached} => {
-                todo!()
-            }
         };
         let x = (tok_emb + pos_emb)
             .dropout(self.dropout, self.train);
@@ -167,19 +156,6 @@ impl ModuleCopy for TransformerEncoder {
                     });
                 } else {return Err(WeightCopyError::Other("Positional Encodings are of wrong type!".to_string()));}
             },
-            LocalPositionalEncoding::Rotary{inv_freq, seq_len_cached, cos_cached, sin_cached} => {
-                if let LocalPositionalEncoding::Rotary{inv_freq: t_inv_freq, seq_len_cached: t_seq_len_cached, cos_cached: t_cos_cached, sin_cached: t_sin_cached} = &mut self.position_embedding {
-                    if t_inv_freq.size() != inv_freq.size() || t_cos_cached.size() != cos_cached.size() || t_sin_cached.size() != sin_cached.size() {
-                        return Err(WeightCopyError::SizeMismatch);
-                    }
-                    *t_seq_len_cached = *seq_len_cached;
-                    tch::no_grad(|| {
-                        t_inv_freq.copy_(inv_freq);
-                        t_cos_cached.copy_(cos_cached);
-                        t_sin_cached.copy_(sin_cached);
-                    });
-                }
-            }
         }
 
         self.layernorm.copy(&source.layernorm)?;

@@ -2,11 +2,10 @@ use crate::modules::{LayerNorm, Linear, ModuleCopy, Module, WeightCopyError};
 use tch::{nn, Device, IndexOp, Kind, Tensor};
 
 /// Different types of positional encoding for Transformers
-#[derive(PartialEq, Eq)]
+#[derive(PartialEq, Eq, Clone)]
 pub enum PositionalEncoding {
     Learned,
     Sinusoidal,
-    Rotary,
 }
 
 /// An enum for positional encoding which conains a tensor (only used internally)
@@ -14,7 +13,6 @@ pub enum PositionalEncoding {
 pub(super) enum LocalPositionalEncoding {
     Learned(Tensor),
     Sinusoidal(Tensor),
-    Rotary{inv_freq: Tensor, seq_len_cached: usize, cos_cached: Tensor, sin_cached: Tensor},
 }
 
 /// The most basic dot-product self attention with an optional causal mask
@@ -37,10 +35,10 @@ impl SelfAttention {
             n_embd,
             n_head,
             dropout,
-            key: Linear::new(&(p / "key"), n_embd, n_embd),
-            query: Linear::new(&(p / "query"), n_embd, n_embd),
-            value: Linear::new(&(p / "value"), n_embd, n_embd),
-            proj: Linear::new(&(p / "proj"), n_embd, n_embd),
+            key: Linear::variance_init(&(p / "key"), n_embd, n_embd),
+            query: Linear::variance_init(&(p / "query"), n_embd, n_embd),
+            value: Linear::variance_init(&(p / "value"), n_embd, n_embd),
+            proj: Linear::variance_init(&(p / "proj"), n_embd, n_embd),
             train: true,
             causal_mask,
         }
@@ -132,8 +130,8 @@ impl TransformerBlock {
             norm1: LayerNorm::new(p / "ln1", vec![n_embd]),
             norm2: LayerNorm::new(p / "ln2", vec![n_embd]),
             attn: SelfAttention::new(&(p / "attn"), n_embd, n_head, dropout, causal_mask),
-            linear1: Linear::new(&(p / "lin1"), n_embd, 2 * n_embd),
-            linear2: Linear::new(&(p / "lin2"), 2 * n_embd, n_embd),
+            linear1: Linear::variance_init(&(p / "lin1"), n_embd, 2 * n_embd),
+            linear2: Linear::variance_init(&(p / "lin2"), 2 * n_embd, n_embd),
             dropout,
             train: true
         }

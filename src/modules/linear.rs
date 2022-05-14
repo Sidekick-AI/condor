@@ -22,7 +22,7 @@ impl Linear {
         let no_wd = vs.set_group(0);
         Linear {
             ws: wd.randn("weight", &[out_dim, in_dim], 0.0, 0.02),
-            bs: no_wd.randn("bias", &[out_dim], 0.0, 0.2),
+            bs: no_wd.zeros("bias", &[out_dim]),
         }
     }
 
@@ -32,6 +32,16 @@ impl Linear {
         Linear {
             ws: wd.randn("weight", &[out_dim, in_dim], 0.0, 0.02),
             bs: no_wd.zeros_no_train("bias", &[out_dim]),
+        }
+    }
+
+    // Init weights with "fan-in" variance scaling
+    pub fn variance_init(vs: &nn::Path, in_dim: i64, out_dim: i64) -> Self {
+        let wd = vs.set_group(1);
+        let no_wd = vs.set_group(0);
+        Linear {
+            ws: wd.randn("weight", &[out_dim, in_dim], 0.0, 1. / (in_dim as f64).sqrt()),
+            bs: no_wd.randn("bias", &[out_dim], 0.0, 1. / (out_dim as f64).sqrt()),
         }
     }
 }

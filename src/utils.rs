@@ -181,3 +181,162 @@ impl <T: Float> ExponentialAverage<T> {
         self.t = 0;
     }
 }
+
+/// Constant decay a value by a factor
+pub struct Decay {
+    pub factor: f64,
+    pub value: f64,
+}
+
+impl Decay {
+    pub fn new(initial: f64, factor: f64) -> Self {
+        Self { factor, value: initial }
+    }
+
+    pub fn step(&mut self) {
+        self.value *= self.factor;
+    }
+}
+
+/// Step decay a value at multiple steps
+#[derive(Debug, Clone)]
+pub struct StepDecay {
+    pub value: f64,
+    current_step: usize,
+    steps: Vec<StepType>,
+    initial_steps: Vec<StepType>,
+}
+
+impl StepDecay {
+    pub fn new(initial: f64, steps: &[StepType]) -> Self {
+        Self {
+            value: initial,
+            current_step: 0,
+            steps: steps.to_vec(),
+            initial_steps: steps.to_vec(),
+        }
+    }
+
+    pub fn step(&mut self) {
+        if self.current_step >= self.steps.len() {return;}
+        match &mut self.steps[self.current_step] {
+            StepType::Constant { value, steps } => {
+                self.value = *value;
+                *steps -= 1;
+                if *steps == 0 {
+                    self.current_step += 1;
+                }
+            },
+            StepType::Until { factor, target } => {
+                let initial_value = self.value;
+                match factor {
+                    DeltaFactor::Additive(i) => self.value += *i,
+                    DeltaFactor::Multiplicitive(i) => self.value *= *i,
+                }
+                if (self.value > *target && initial_value < *target) || (self.value < *target && initial_value > *target) {
+                    self.current_step += 1;
+                }
+            },
+            StepType::NSteps { factor, steps } => {
+                match factor {
+                    DeltaFactor::Additive(i) => self.value += *i,
+                    DeltaFactor::Multiplicitive(i) => self.value *= *i,
+                }
+                *steps -= 1;
+                if *steps == 0 {
+                    self.current_step += 1;
+                }
+            },
+            StepType::Lerp {end, steps} => {
+                let factor = (*end - self.value) / (*steps as f64);
+                self.value += factor;
+                *steps -= 1;
+                if *steps == 0 {
+                    self.current_step += 1;
+                }
+            }
+        }
+    }
+
+    pub fn n_steps(&mut self, mut n_steps: usize) {
+
+        while n_steps > 0 {
+            if self.current_step >= self.steps.len() {return;}
+            match &mut self.steps[self.current_step] {
+                StepType::Constant { value, steps } => {
+                    self.value = *value;
+                    let sub_factor = n_steps.min(*steps);
+                    *steps -= sub_factor;
+                    n_steps -= sub_factor;
+                    if *steps == 0 {
+                        self.current_step += 1;
+                    }
+                },
+                StepType::Until { factor, target } => {
+                    let initial_value = self.value;
+                    match factor {
+                        DeltaFactor::Additive(i) => {
+                            let steps_required = ((*target - self.value) / *i).ceil() as usize;
+                            let steps_taken = steps_required.min(n_steps);
+                            self.value += *i * steps_taken as f64;
+                            n_steps -= steps_taken;
+                        },
+                        DeltaFactor::Multiplicitive(i) => {
+                            let steps_required = (*target / self.value).log(*i).ceil() as usize;
+                            let steps_taken = steps_required.min(n_steps);
+                            self.value *= i.powf(steps_taken as f64);
+                            n_steps -= steps_taken;
+                        },
+                    }
+                    if (self.value > *target && initial_value < *target) || (self.value < *target && initial_value > *target) {
+                        self.current_step += 1;
+                    }
+                },
+                StepType::NSteps { factor, steps } => {
+                    let n_factor = n_steps.min(*steps);
+                    match factor {
+                        DeltaFactor::Additive(i) => self.value += *i * n_factor as f64,
+                        DeltaFactor::Multiplicitive(i) => self.value *= i.powf(n_factor as f64),
+                    }
+                    *steps -= n_factor;
+                    n_steps -= n_factor;
+                    if *steps == 0 {
+                        self.current_step += 1;
+                    }
+                },
+                StepType::Lerp {end, steps} => {
+                    let factor = (*end - self.value) / (*steps as f64);
+                    let steps_required = ((*end - self.value) / factor) as usize;
+                    let steps_taken = steps_required.min(n_steps);
+                    if steps_taken == 0 {return;}
+
+                    self.value += factor * steps_taken as f64;
+                    *steps -= steps_taken;
+                    n_steps -= steps_taken;
+                    
+                    if *steps == 0 {
+                        self.current_step += 1;
+                    }
+                },
+            }
+        }
+    }
+
+    pub fn reset(&mut self) {
+        self.steps = self.initial_steps.clone();
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum StepType {
+    Constant{value: f64, steps: usize},
+    Until{factor: DeltaFactor, target: f64},
+    NSteps{factor: DeltaFactor, steps: usize},
+    Lerp{end: f64, steps: usize},
+}
+
+#[derive(Debug, Clone)]
+pub enum DeltaFactor {
+    Additive(f64),
+    Multiplicitive(f64),
+}
