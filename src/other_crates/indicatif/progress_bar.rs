@@ -300,7 +300,7 @@ impl ProgressBar {
     /// time.
     pub fn reset_eta(&self) {
         self.update_and_draw(|state| {
-            state.est.reset(state.pos);
+            state.est.reset();
         });
     }
 

@@ -95,6 +95,7 @@ impl Embedding {
 
 /// A layer defined by a closure
 pub struct Func<'a> {
+    #[allow(clippy::type_complexity)]
     f: Box<dyn 'a + Fn(&Tensor, bool) -> Tensor + Send>,
     train: bool
 }

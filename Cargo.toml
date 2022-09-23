@@ -7,6 +7,10 @@ license = "MIT OR Apache-2.0"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[features]
+default = ["improved_unicode"]
+improved_unicode = ["unicode-segmentation", "unicode-width"]
+
 [dependencies]
 tch = {git="https://github.com/LaurentMazare/tch-rs"}
 num = "0.2.1"

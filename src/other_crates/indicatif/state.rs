@@ -1,8 +1,4 @@
-use std::borrow::Cow;
-use std::fmt;
-use std::io;
-use std::thread;
-use std::time::{Duration, Instant};
+use std::{borrow::Cow, fmt, io, thread, time::{Duration, Instant}};
 
 use super::draw_target::{ProgressDrawState, ProgressDrawTarget};
 use super::style::{ProgressFinish, ProgressStyle};
@@ -148,7 +144,7 @@ impl ProgressState {
         f(self);
         let new_pos = self.pos;
         if new_pos != old_pos {
-            self.est.record_step(new_pos, Instant::now());
+            self.est.record_step(Instant::now());
         }
         if new_pos >= self.draw_next {
             self.draw_next = new_pos.saturating_add(if self.draw_rate != 0 {
@@ -262,7 +258,7 @@ impl Drop for ProgressState {
 /// Ring buffer with constant capacity. Used by `ProgressBar`s to display `{eta}`, `{eta_precise}`,
 /// and `{*_per_sec}`.
 pub(crate) struct Estimate {
-    buf: Box<[f64; 15]>,
+    buf: [f64; 15],
     /// Lower 4 bits signify the current length, meaning how many values of `buf` are actually
     /// meaningful (and not just set to 0 by initialization).
     ///
@@ -272,8 +268,8 @@ pub(crate) struct Estimate {
     /// insertion order, `last_index + 1` is the least recently used position and is the first
     /// to be overwritten.
     data: u8,
-    start_time: Instant,
-    start_value: u64,
+    start_times: [Instant; 64],
+    start_time_index: u8,
 }
 
 impl Estimate {
@@ -300,10 +296,10 @@ impl Estimate {
 
     fn new() -> Self {
         let this = Self {
-            buf: Box::new([0.0; 15]),
+            buf: [0.0; 15],
             data: 0,
-            start_time: Instant::now(),
-            start_value: 0,
+            start_times: [Instant::now(); 64],
+            start_time_index: 0,
         };
         // Make sure not to break anything accidentally as self.data can't handle bufs longer than
         // 15 elements (not enough space in a u8)
@@ -311,24 +307,20 @@ impl Estimate {
         this
     }
 
-    pub(crate) fn reset(&mut self, start_value: u64) {
-        self.start_time = Instant::now();
-        self.start_value = start_value;
+    pub(crate) fn reset(&mut self) {
+        self.start_time_index = 0;
         self.data = 0;
     }
 
-    fn record_step(&mut self, value: u64, current_time: Instant) {
-        let elapsed = current_time - self.start_time;
-        let item = {
-            let divisor = value.saturating_sub(self.start_value) as f64;
-            if divisor == 0.0 {
-                0.0
-            } else {
-                duration_to_secs(elapsed) / divisor
-            }
-        };
-
-        self.push(item);
+    fn record_step(&mut self, current_time: Instant) {
+        // Get start time 64 steps ago
+        let start_time = self.start_times[self.start_time_index as usize];
+        self.start_times[self.start_time_index as usize] = Instant::now();
+        self.start_time_index += 1;
+        if self.start_time_index == 64 {
+            self.start_time_index = 0;
+        }
+        self.push(duration_to_secs(current_time - start_time) / 60.);
     }
 
     /// Adds the `value` into the buffer, overwriting the oldest one if full, or increasing length
@@ -363,8 +355,8 @@ impl fmt::Debug for Estimate {
             .field("buf", &self.buf)
             .field("len", &self.len())
             .field("last_idx", &self.last_idx())
-            .field("start_time", &self.start_time)
-            .field("start_value", &self.start_value)
+            .field("start_times", &self.start_times)
+            .field("start_time_index", &self.start_time_index)
             .finish()
     }
 }
@@ -384,54 +376,4 @@ pub(crate) enum Status {
     InProgress,
     DoneVisible,
     DoneHidden,
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_time_per_step() {
-        let test_rate = |items_per_second| {
-            let mut est = Estimate::new();
-            let mut current_time = est.start_time;
-            let mut current_value = 0;
-            for _ in 0..est.buf.len() {
-                current_value += items_per_second;
-                current_time += Duration::from_secs(1);
-                est.record_step(current_value, current_time);
-            }
-            let avg_seconds_per_step = est.seconds_per_step();
-
-            assert!(avg_seconds_per_step > 0.0);
-            assert!(avg_seconds_per_step.is_finite());
-
-            let expected_rate = 1.0 / items_per_second as f64;
-            let absolute_error = (avg_seconds_per_step - expected_rate).abs();
-            assert!(
-                absolute_error < f64::EPSILON,
-                "Expected rate: {}, actual: {}, absolute error: {}",
-                expected_rate,
-                avg_seconds_per_step,
-                absolute_error
-            );
-        };
-
-        test_rate(1);
-        test_rate(1_000);
-        test_rate(1_000_000);
-        test_rate(1_000_000_000);
-        test_rate(1_000_000_001);
-        test_rate(100_000_000_000);
-        test_rate(1_000_000_000_000);
-        test_rate(100_000_000_000_000);
-        test_rate(1_000_000_000_000_000);
-    }
-
-    #[test]
-    fn test_duration_stuff() {
-        let duration = Duration::new(42, 100_000_000);
-        let secs = duration_to_secs(duration);
-        assert_eq!(secs_to_duration(secs), duration);
-    }
 }
