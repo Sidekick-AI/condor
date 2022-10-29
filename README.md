@@ -15,3 +15,6 @@
 - [ ] Implement more exotic architectures
 - [ ] Write more detailed tests (check tensor data)
 - [ ] Implement rotary positional embeddings
+
+## Codebase Visualization
+![Visualization of the codebase](./diagram.svg)
